@@ -7,6 +7,7 @@ embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
+dev_store_url = "mb2bstr.myshopify.com"
 
 [webhooks]
 api_version = "2026-04"
@@ -21,7 +22,11 @@ api_version = "2026-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_shipping,write_shipping,read_discounts,write_discounts,read_orders,write_orders,read_locations"
+scopes = "read_discounts,read_locations,read_orders,read_shipping,write_discounts,write_orders,write_products,write_shipping"
 
 [auth]
-redirect_urls = []
+redirect_urls = [
+  "https://shopify-discount-manager.vercel.app/auth/callback",
+  "https://shopify-discount-manager.vercel.app/auth/shopify/callback",
+  "https://shopify-discount-manager.vercel.app/api/auth/callback"
+]
