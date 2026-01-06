@@ -2,7 +2,7 @@
 
 client_id = "7ec39b2870c95c2954cf2049763b0848"
 name = "discount-manager"
-application_url = "https://placeholder.example.com"
+application_url = "https://shopify-discount-manager.vercel.app"
 embedded = true
 
 [build]
