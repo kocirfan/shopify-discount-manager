@@ -1,0 +1,33 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
+    deliveryGroups {
+      selectedDeliveryOption {
+        title
+        handle
+      }
+    }
+  }
+  shop {
+    deliveryDiscountSettings: metafield(
+      namespace: "delivery_discount"
+      key: "settings"
+    ) {
+      value
+    }
+  }
+}
