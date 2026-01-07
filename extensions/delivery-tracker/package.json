@@ -1,0 +1,13 @@
+{
+  "name": "delivery-tracker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "@shopify/ui-extensions": "^2025.4.0"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^3.69.0"
+  }
+}

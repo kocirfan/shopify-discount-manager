@@ -1,225 +1,137 @@
-// import {
-//   CartInput,
-//   CartLinesDiscountsGenerateRunResult,
-//   ProductDiscountSelectionStrategy,
-// } from '../generated/api';
-
-// interface DeliveryMethod {
-//   id: string;
-//   name: string;
-//   type: string;
-//   enabled: boolean;
-//   discountType: "percentage" | "fixed";
-//   discountValue: number;
-// }
-
-// export function cartLinesDiscountsGenerateRun(
-//   input: CartInput,
-// ): CartLinesDiscountsGenerateRunResult {
-//   console.error('=== PICKUP DISCOUNT FUNCTION ===');
-//   console.error('Full input:', JSON.stringify(input, null, 2));
-
-//   if (!input.cart.lines.length) {
-//     console.error('No cart lines');
-//     return {operations: []};
-//   }
-
-//   // Metafield'dan ayarları oku
-//   const settingsJson = input.shop?.deliveryDiscountSettings?.value;
-//   if (!settingsJson) {
-//     console.error('No settings found in metafield');
-//     return {operations: []};
-//   }
-
-//   let settings: DeliveryMethod[];
-//   try {
-//     settings = JSON.parse(settingsJson);
-//     console.error('Loaded settings:', settings);
-//   } catch (error) {
-//     console.error('Error parsing settings:', error);
-//     return {operations: []};
-//   }
-
-//   // Aktif metodları filtrele
-//   const activeMethods = settings.filter(m => m.enabled);
-//   if (activeMethods.length === 0) {
-//     console.error('No active discount methods');
-//     return {operations: []};
-//   }
-
-//   // Seçili teslimat metodunu kontrol et
-//   const deliveryGroups = input.cart?.deliveryGroups || [];
-//   let matchedMethod: DeliveryMethod | null = null;
-
-//   for (const group of deliveryGroups) {
-//     const selected = group?.selectedDeliveryOption;
-//     if (!selected) continue;
-
-//     const title = selected.title?.toLowerCase() || '';
-//     const handle = selected.handle?.toLowerCase() || '';
-
-//     console.error('Checking delivery option:', { title, handle });
-
-//     // Aktif metodlarla eşleştir
-//     for (const method of activeMethods) {
-//       const methodName = method.name.toLowerCase();
-      
-//       if (title.includes(methodName) || 
-//           methodName.includes(title) ||
-//           handle.includes(methodName.replace(/\s+/g, '-'))) {
-//         matchedMethod = method;
-//         break;
-//       }
-//     }
-
-//     if (matchedMethod) break;
-//   }
-
-//   if (!matchedMethod) {
-//     console.error('No matching method found');
-//     return {operations: []};
-//   }
-
-//   console.error('Matched method:', matchedMethod);
-
-//   // İndirim hesapla
-//   const subtotal = parseFloat(input.cart.cost.subtotalAmount.amount);
-//   let discountAmount: string;
-
-//   if (matchedMethod.discountType === 'percentage') {
-//     discountAmount = (subtotal * matchedMethod.discountValue / 100).toFixed(2);
-//   } else {
-//     discountAmount = matchedMethod.discountValue.toFixed(2);
-//   }
-
-//   console.error('Applying discount:', discountAmount);
-
-//   // Her ürüne eşit oranda dağıt
-//   return {
-//     operations: [
-//       {
-//         productDiscountsAdd: {
-//           candidates: input.cart.lines.map(line => ({
-//             message: `${matchedMethod.discountValue}% korting voor ${matchedMethod.name}`,
-//             targets: [{
-//               cartLineId: line.id
-//             }],
-//             value: matchedMethod.discountType === 'percentage' 
-//               ? {
-//                   percentage: {
-//                     value: matchedMethod.discountValue.toString()
-//                   }
-//                 }
-//               : {
-//                   fixedAmount: {
-//                     amount: (parseFloat(discountAmount) / input.cart.lines.length).toFixed(2)
-//                   }
-//                 }
-//           })),
-//           selectionStrategy: ProductDiscountSelectionStrategy.First,
-//         },
-//       },
-//     ],
-//   };
-// }
 export function run(input: any) {
-  // Boş sepet
+  console.error('=== ORDER DISCOUNT START ===');
+  console.error('Input:', JSON.stringify(input, null, 2));
+
+  // Default return
+  const emptyReturn = {
+    discountApplicationStrategy: "FIRST",
+    discounts: []
+  };
+
   if (!input.cart?.lines?.length) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
+    console.error('❌ No cart lines');
+    return emptyReturn;
   }
 
-  // Metafield
   const settingsJson = input.shop?.deliveryDiscountSettings?.value;
   if (!settingsJson) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
+    console.error('❌ No settings in metafield');
+    return emptyReturn;
   }
 
   let settings;
   try {
     settings = JSON.parse(settingsJson);
+    console.error('✅ Settings loaded:', settings.length, 'methods');
   } catch (e) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
+    console.error('❌ Parse error');
+    return emptyReturn;
   }
 
   const activeMethods = settings.filter((m: any) => m.enabled);
   if (!activeMethods.length) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
+    console.error('❌ No active methods');
+    return emptyReturn;
   }
 
-  // Delivery groups kontrol
-  const deliveryGroups = input.cart?.deliveryGroups || [];
+  console.error('✅ Active methods:', activeMethods.map((m: any) => m.name));
 
-  // Eğer delivery groups yoksa veya boşsa, indirim uygulanmaz
-  if (!deliveryGroups.length) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
-  }
+  // Önce cart attribute'dan delivery type'ı kontrol et
+  const selectedDeliveryType = input.cart?.attribute?.value;
+  console.error('🏷️ Cart attribute delivery type:', selectedDeliveryType);
 
   let matchedMethod = null;
 
-  // Seçilen teslimat yöntemini kontrol et
-  for (const group of deliveryGroups) {
-    const selected = group?.selectedDeliveryOption;
-    if (!selected?.title) continue;
+  if (selectedDeliveryType) {
+    // Cart attribute varsa, bunu kullan
+    console.error('✅ Using cart attribute for delivery detection');
 
-    const title = selected.title.toLowerCase();
-
-    // Aktif metodlarla eşleştir
     for (const method of activeMethods) {
-      // Pickup metodları için özel kontrol
-      if (method.type === 'pickup') {
-        if (title.includes('pickup') || title.includes('ophalen') || title.includes('afhalen')) {
-          matchedMethod = method;
-          break;
-        }
-      }
-
-      // Shipping metodları için isim eşleştirmesi
-      if (method.type === 'shipping') {
-        const methodName = method.name.toLowerCase();
-        // "Free Shipping (Zone 1)" -> "free shipping" ve "zone 1" kontrol et
-        const methodParts = methodName.split('(')[0].trim();
-
-        if (title.includes(methodParts) || methodParts.includes(title)) {
-          matchedMethod = method;
-          break;
-        }
+      if (method.type === selectedDeliveryType) {
+        matchedMethod = method;
+        console.error('✅ MATCHED via cart attribute:', method.name);
+        break;
       }
     }
+  } else {
+    // Cart attribute yoksa, deliveryGroups'u dene (eski yöntem)
+    console.error('⚠️ No cart attribute, trying deliveryGroups');
+    const deliveryGroups = input.cart?.deliveryGroups || [];
+    console.error('📦 Delivery groups count:', deliveryGroups.length);
 
-    if (matchedMethod) break;
+    if (deliveryGroups.length === 0) {
+      console.error('⚠️ No delivery groups - no discount applied');
+      return emptyReturn;
+    }
+
+    for (const group of deliveryGroups) {
+      const selected = group?.selectedDeliveryOption;
+      if (!selected?.handle) continue;
+
+      const deliveryOptions = group?.deliveryOptions || [];
+      const fullOption = deliveryOptions.find((opt: any) => opt.handle === selected.handle);
+
+      if (!fullOption) {
+        console.error('⚠️ Could not find full delivery option for handle:', selected.handle);
+        continue;
+      }
+
+      const title = fullOption.title?.toLowerCase() || '';
+      console.error('🔍 Selected delivery title:', title);
+
+      // Title'dan type'ı çıkar (pickup kelimesi varsa pickup, yoksa shipping)
+      const isPickup = title.includes('pickup');
+      const detectedType = isPickup ? 'pickup' : 'shipping';
+      console.error('🔍 Detected type from title:', detectedType);
+
+      for (const method of activeMethods) {
+        if (method.type === 'pickup' && detectedType === 'pickup') {
+          matchedMethod = method;
+          console.error('✅ PICKUP matched');
+          break;
+        }
+
+        if (method.type === 'shipping' && detectedType === 'shipping') {
+          const methodName = method.name.toLowerCase().split('(')[0].trim();
+          if (title.includes(methodName) || methodName.includes(title)) {
+            matchedMethod = method;
+            console.error('✅ SHIPPING matched:', method.name);
+            break;
+          }
+        }
+      }
+
+      if (matchedMethod) break;
+    }
   }
 
   if (!matchedMethod) {
-    return { discountApplicationStrategy: "FIRST", discounts: [] };
+    console.error('❌ No matched method');
+    return emptyReturn;
   }
 
-  const subtotal = parseFloat(input.cart.cost?.subtotalAmount?.amount || '0');
-  
-  const discount: any = {
-    message: `${matchedMethod.discountValue}% korting`,
-    targets: [{
-      orderSubtotal: {
-        excludedVariantIds: []
-      }
-    }]
-  };
-
-  if (matchedMethod.discountType === 'percentage') {
-    discount.value = {
-      percentage: {
-        value: matchedMethod.discountValue.toString()
-      }
-    };
-  } else {
-    discount.value = {
-      fixedAmount: {
-        amount: matchedMethod.discountValue.toFixed(2)
-      }
-    };
-  }
+  console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
   return {
     discountApplicationStrategy: "FIRST",
-    discounts: [discount]
+    discounts: [{
+      message: `${matchedMethod.discountValue}% korting`,
+      targets: [{
+        orderSubtotal: {
+          excludedVariantIds: []
+        }
+      }],
+      value: matchedMethod.discountType === 'percentage'
+        ? {
+            percentage: {
+              value: matchedMethod.discountValue.toString()
+            }
+          }
+        : {
+            fixedAmount: {
+              amount: matchedMethod.discountValue.toFixed(2)
+            }
+          }
+    }]
   };
 }

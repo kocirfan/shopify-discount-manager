@@ -16,10 +16,30 @@ query Input {
       }
     }
     deliveryGroups {
+      id
       selectedDeliveryOption {
-        title
         handle
+        title
+        cost {
+          amount
+        }
       }
+      deliveryOptions {
+        handle
+        title
+        cost {
+          amount
+        }
+      }
+    }
+    attribute(key: "_selected_delivery_type") {
+      value
+    }
+    buyerIdentity {
+      customer {
+        id
+      }
+      email
     }
   }
   shop {

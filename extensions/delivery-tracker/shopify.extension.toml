@@ -1,0 +1,16 @@
+api_version = "2025-04"
+
+[[extensions]]
+name = "Delivery Tracker"
+handle = "delivery-tracker"
+uid = "caa3dcb5-0be5-e68a-e0d3-ce240c7ce923d8c0fd7b"
+type = "ui_extension"
+
+  [[extensions.targeting]]
+  target = "purchase.checkout.block.render"
+  module = "./Checkout.jsx"
+
+  [extensions.capabilities]
+  api_access = true
+  network_access = false
+  block_progress = false
