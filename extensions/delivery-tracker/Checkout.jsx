@@ -64,7 +64,7 @@ export default extension(
       if (type) {
         deliveryType = type;
       } else {
-        const isPickup = title.includes('pickup') || handle.includes('pickup');
+        const isPickup = title.includes('pickup') || handle.includes('pickup') || title.includes('terheijdenseweg') || handle.includes('terheijdenseweg');
         deliveryType = isPickup ? 'pickup' : 'shipping';
       }
 

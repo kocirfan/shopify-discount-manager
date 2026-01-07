@@ -80,7 +80,7 @@ export function run(input: any) {
       console.error('🔍 Selected delivery title:', title);
 
       // Title'dan type'ı çıkar (pickup kelimesi varsa pickup, yoksa shipping)
-      const isPickup = title.includes('pickup');
+      const isPickup = title.includes('pickup') || title.includes('afhalen') || title.includes('abholung') || title.includes('terheijdenseweg');
       const detectedType = isPickup ? 'pickup' : 'shipping';
       console.error('🔍 Detected type from title:', detectedType);
 
