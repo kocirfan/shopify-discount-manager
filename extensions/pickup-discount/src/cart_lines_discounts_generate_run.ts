@@ -115,7 +115,7 @@ export function run(input: any) {
   console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
   return {
-    discountApplicationStrategy: "FIRST",
+    discountApplicationStrategy: "MAXIMUM",
     discounts: [{
       message: `${matchedMethod.discountValue}% korting`,
       targets: [{

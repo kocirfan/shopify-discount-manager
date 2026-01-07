@@ -12,6 +12,7 @@ export default extension(
 
     let lastDeliveryType = null;
     let selectedDate = null;
+    let isInitialized = false;
 
     // UI container
     const container = root.createComponent(BlockStack, { spacing: 'base' });
@@ -19,6 +20,18 @@ export default extension(
 
     // Tarih picker (başlangıçta gizli)
     let datePickerWrapper = null;
+
+    // İlk yüklemede cart attribute'ları temizle
+    // (Sepetten geldiğinde eski değerler kalmasın diye)
+    applyAttributeChange({
+      type: 'updateAttribute',
+      key: '_selected_delivery_type',
+      value: ''
+    }).then(() => {
+      console.log('[DELIVERY TRACKER] 🧹 Initial cleanup: cart attributes cleared');
+    }).catch(err => {
+      console.error('[DELIVERY TRACKER] ❌ Error in initial cleanup:', err);
+    });
 
     // Delivery seçimini izle
     deliveryGroups.subscribe(async (groups) => {
@@ -114,12 +127,12 @@ export default extension(
         const heading = root.createComponent(Text, {
           size: 'base',
           emphasis: 'bold'
-        }, 'Pickup Date');
+        }, 'Afhaaldatum');
 
         const description = root.createComponent(Text, {
           size: 'small',
           appearance: 'subdued'
-        }, 'Select your preferred pickup date');
+        }, 'Selecteer uw gewenste afhaaldatum');
 
         // Bugünün tarihi (minimum tarih)
         const today = new Date();
