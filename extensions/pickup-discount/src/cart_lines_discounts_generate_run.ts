@@ -146,16 +146,18 @@ export function run(input: any) {
   console.error('=== ORDER DISCOUNT START ===');
 
   const emptyReturn = {
-    discountApplicationStrategy: "MAXIMUM",
+    discountApplicationStrategy: "ALL", // Stackle
     discounts: []
   };
 
   if (!input.cart?.lines?.length) {
+    console.error('❌ No cart lines');
     return emptyReturn;
   }
 
   const settingsJson = input.shop?.deliveryDiscountSettings?.value;
   if (!settingsJson) {
+    console.error('❌ No settings');
     return emptyReturn;
   }
 
@@ -163,80 +165,51 @@ export function run(input: any) {
   try {
     settings = JSON.parse(settingsJson);
   } catch (e) {
+    console.error('❌ Parse error');
     return emptyReturn;
   }
 
   const activeMethods = settings.filter((m: any) => m.enabled);
   if (!activeMethods.length) {
+    console.error('❌ No active methods');
     return emptyReturn;
   }
 
-  // Mevcut discount'ları kontrol et
-  const discountCodes = input.cart?.discountCodes || [];
-  const existingDiscountAllocations = input.cart?.discountAllocations || [];
+  console.error('✅ Active methods:', activeMethods.length);
+
+  // Cart attribute'dan delivery type'ı oku
+  const cartAttributes = input.cart?.attributes || [];
+  console.error('📋 Cart attributes:', cartAttributes);
+
+  let selectedType = null;
   
-  console.error('💰 Existing discounts:', discountCodes.length);
-  console.error('💰 Discount allocations:', existingDiscountAllocations.length);
-
-  // Eğer başka bir discount varsa ve pickup indirimi daha küçükse uygulanmasın
-  let hasExistingDiscount = discountCodes.length > 0 || existingDiscountAllocations.length > 0;
-
-  // DeliveryGroups kontrolü
-  const deliveryGroups = input.cart?.deliveryGroups || [];
-  
-  if (deliveryGroups.length === 0) {
-    console.error('⚠️ No delivery groups');
-    return emptyReturn;
-  }
-
-  let matchedMethod = null;
-
-  for (const group of deliveryGroups) {
-    const selected = group?.selectedDeliveryOption;
-    if (!selected?.handle) continue;
-
-    const deliveryOptions = group?.deliveryOptions || [];
-    const fullOption = deliveryOptions.find((opt: any) => opt.handle === selected.handle);
-
-    if (!fullOption) continue;
-
-    const title = fullOption.title?.toLowerCase() || '';
-    const isPickup = title.includes('pickup') || title.includes('afhalen') || 
-                     title.includes('terheijdenseweg') || title.includes('markham');
-
-    if (isPickup) {
-      const pickupMethod = activeMethods.find((m: any) => m.type === 'pickup');
-      if (pickupMethod) {
-        matchedMethod = pickupMethod;
-        console.error('✅ Pickup matched');
-        break;
-      }
-    } else {
-      const shippingMethod = activeMethods.find((m: any) => {
-        if (m.type !== 'shipping') return false;
-        const methodName = m.name.toLowerCase().split('(')[0].trim();
-        return title.includes(methodName) || methodName.includes(title);
-      });
-      
-      if (shippingMethod) {
-        matchedMethod = shippingMethod;
-        console.error('✅ Shipping matched');
-        break;
-      }
+  for (const attr of cartAttributes) {
+    if (attr.key === 'delivery_type') {
+      selectedType = attr.value;
+      console.error('✅ Found delivery_type:', selectedType);
+      break;
     }
   }
 
-  if (!matchedMethod) {
-    console.error('❌ No match');
+  if (!selectedType) {
+    console.error('❌ No delivery_type in cart attributes');
     return emptyReturn;
   }
 
-  console.error('✅ APPLYING:', matchedMethod.name, matchedMethod.discountValue + '%');
+  // Type'a göre method bul
+  const matchedMethod = activeMethods.find((m: any) => m.type === selectedType);
+
+  if (!matchedMethod) {
+    console.error('❌ No matched method for type:', selectedType);
+    return emptyReturn;
+  }
+
+  console.error('✅ MATCHED:', matchedMethod.name, matchedMethod.discountValue + '%');
 
   return {
-    discountApplicationStrategy: "ALL", // Her ikisini de uygula
+    discountApplicationStrategy: "ALL",
     discounts: [{
-      message: `${matchedMethod.discountValue}% delivery korting`,
+      message: `${matchedMethod.discountValue}% ${matchedMethod.type} korting`,
       targets: [{
         orderSubtotal: {
           excludedVariantIds: []
