@@ -7,7 +7,7 @@ import {
 
 export default extension(
   'purchase.checkout.block.render',
-  (root, { deliveryGroups, applyAttributeChange }) => {
+  (root, { deliveryGroups, applyAttributeChange, applyDiscountCodeChange }) => {
     console.log('[DELIVERY TRACKER] ✅ Extension initialized');
 
     let lastDeliveryType = null;
@@ -96,7 +96,7 @@ export default extension(
 
       console.log('[DELIVERY TRACKER] 🔍 Title:', title, '| Type field:', type, '| Detected type:', deliveryType);
 
-      // Değişiklik varsa cart attribute'u güncelle
+      // Değişiklik varsa cart attribute'u güncelle ve discount code ekle/kaldır
       if (deliveryType && deliveryType !== lastDeliveryType) {
         console.log('[DELIVERY TRACKER] 📝 Updating cart attribute to:', deliveryType);
 
@@ -108,8 +108,25 @@ export default extension(
           });
           lastDeliveryType = deliveryType;
           console.log('[DELIVERY TRACKER] ✅ Cart attribute updated successfully');
+
+          // Pickup seçildiyse discount code ekle, değilse kaldır
+          if (deliveryType === 'pickup') {
+            console.log('[DELIVERY TRACKER] 💰 Adding pickup discount code');
+            await applyDiscountCodeChange({
+              type: 'addDiscountCode',
+              code: 'PICKUP20'
+            });
+            console.log('[DELIVERY TRACKER] ✅ Discount code added');
+          } else {
+            console.log('[DELIVERY TRACKER] 💰 Removing pickup discount code');
+            await applyDiscountCodeChange({
+              type: 'removeDiscountCode',
+              code: 'PICKUP20'
+            });
+            console.log('[DELIVERY TRACKER] ✅ Discount code removed');
+          }
         } catch (error) {
-          console.error('[DELIVERY TRACKER] ❌ Error updating attribute:', error);
+          console.error('[DELIVERY TRACKER] ❌ Error updating attribute or discount:', error);
         }
       }
 
