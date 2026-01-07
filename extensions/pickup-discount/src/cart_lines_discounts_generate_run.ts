@@ -42,6 +42,12 @@ export function run(input: any) {
   console.error('🏷️ Cart attribute delivery type:', selectedDeliveryType);
   console.error('📅 Pickup date:', pickupDate || 'Not set');
 
+  // Mevcut discount'ları kontrol et
+  const existingDiscounts = input.cart?.discountAllocations || [];
+  const discountCodes = input.cart?.discountCodes || [];
+  console.error('💰 Existing discount allocations:', existingDiscounts.length);
+  console.error('🎫 Discount codes:', discountCodes.map((d: any) => d.code).join(', ') || 'None');
+
   let matchedMethod = null;
 
   if (selectedDeliveryType) {
@@ -115,7 +121,6 @@ export function run(input: any) {
   console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
   return {
-    discountApplicationStrategy: "MAXIMUM",
     discounts: [{
       message: `${matchedMethod.discountValue}% korting`,
       targets: [{
