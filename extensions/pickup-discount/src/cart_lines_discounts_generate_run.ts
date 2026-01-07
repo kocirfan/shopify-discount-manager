@@ -38,7 +38,9 @@ export function run(input: any) {
 
   // Önce cart attribute'dan delivery type'ı kontrol et
   const selectedDeliveryType = input.cart?.attribute?.value;
+  const pickupDate = input.cart?.pickupDate?.value;
   console.error('🏷️ Cart attribute delivery type:', selectedDeliveryType);
+  console.error('📅 Pickup date:', pickupDate || 'Not set');
 
   let matchedMethod = null;
 

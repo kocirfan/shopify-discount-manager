@@ -1,4 +1,9 @@
-import { extension } from '@shopify/ui-extensions/checkout';
+import {
+  extension,
+  BlockStack,
+  Text,
+  DatePicker,
+} from '@shopify/ui-extensions/checkout';
 
 export default extension(
   'purchase.checkout.block.render',
@@ -6,6 +11,14 @@ export default extension(
     console.log('[DELIVERY TRACKER] ✅ Extension initialized');
 
     let lastDeliveryType = null;
+    let selectedDate = null;
+
+    // UI container
+    const container = root.createComponent(BlockStack, { spacing: 'base' });
+    root.appendChild(container);
+
+    // Tarih picker (başlangıçta gizli)
+    let datePickerWrapper = null;
 
     // Delivery seçimini izle
     deliveryGroups.subscribe(async (groups) => {
@@ -86,9 +99,82 @@ export default extension(
           console.error('[DELIVERY TRACKER] ❌ Error updating attribute:', error);
         }
       }
+
+      // UI'ı güncelle (pickup seçiliyse tarih picker göster)
+      updateUI(deliveryType);
     });
 
-    // UI render etme - boş view döndür (görünmez)
-    root.appendChild(root.createComponent('View', {}, []));
+    // UI güncelleme fonksiyonu
+    function updateUI(deliveryType) {
+      // Container'ı temizle
+      container.replaceChildren();
+
+      if (deliveryType === 'pickup') {
+        // Pickup seçiliyse tarih picker göster
+        const heading = root.createComponent(Text, {
+          size: 'base',
+          emphasis: 'bold'
+        }, 'Pickup Date');
+
+        const description = root.createComponent(Text, {
+          size: 'small',
+          appearance: 'subdued'
+        }, 'Select your preferred pickup date');
+
+        // Bugünün tarihi (minimum tarih)
+        const today = new Date();
+        const minDate = today.toISOString().split('T')[0];
+
+        // 30 gün sonrası (maximum tarih)
+        const maxDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0];
+
+        const datePicker = root.createComponent(DatePicker, {
+          selected: selectedDate || minDate,
+          disabled: [],
+          disableDatesAfter: maxDate,
+          disableDatesBefore: minDate,
+          onChange: async (date) => {
+            selectedDate = date;
+            console.log('[DELIVERY TRACKER] 📅 Date selected:', date);
+
+            // Tarihi cart attribute'a kaydet
+            try {
+              await applyAttributeChange({
+                type: 'updateAttribute',
+                key: 'pickup_delivery_date',
+                value: date
+              });
+              console.log('[DELIVERY TRACKER] ✅ Pickup date saved to cart');
+            } catch (error) {
+              console.error('[DELIVERY TRACKER] ❌ Error saving pickup date:', error);
+            }
+          }
+        });
+
+        container.appendChild(heading);
+        container.appendChild(description);
+        container.appendChild(datePicker);
+
+        console.log('[DELIVERY TRACKER] 🗓️ Date picker shown');
+      } else {
+        // Pickup değilse, tarihi temizle
+        if (selectedDate) {
+          selectedDate = null;
+          applyAttributeChange({
+            type: 'updateAttribute',
+            key: 'pickup_delivery_date',
+            value: ''
+          }).catch(err => {
+            console.error('[DELIVERY TRACKER] ❌ Error clearing pickup date:', err);
+          });
+        }
+        console.log('[DELIVERY TRACKER] 🗓️ Date picker hidden');
+      }
+    }
+
+    // İlk render
+    updateUI(null);
   }
 );

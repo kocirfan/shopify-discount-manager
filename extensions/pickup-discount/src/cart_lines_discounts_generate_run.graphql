@@ -35,6 +35,9 @@ query Input {
     attribute(key: "_selected_delivery_type") {
       value
     }
+    pickupDate: attribute(key: "pickup_delivery_date") {
+      value
+    }
     buyerIdentity {
       customer {
         id
