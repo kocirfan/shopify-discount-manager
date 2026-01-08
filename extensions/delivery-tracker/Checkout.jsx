@@ -7,7 +7,7 @@ import {
 
 export default extension(
   'purchase.checkout.block.render',
-  (root, { deliveryGroups, applyAttributeChange, applyDiscountCodeChange }) => {
+  (root, { deliveryGroups, applyAttributeChange }) => {
     console.log('[DELIVERY TRACKER] ✅ Extension initialized');
 
     let lastDeliveryType = null;
