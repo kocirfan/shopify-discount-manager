@@ -41,6 +41,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             automaticAppDiscount {
               discountId
               title
+              combinesWith {
+                orderDiscounts
+                productDiscounts
+                shippingDiscounts
+              }
             }
             userErrors {
               field
@@ -54,7 +59,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           automaticAppDiscount: {
             title: "Teslimat İndirimi",
             functionId: discountFunction.id,
-            startsAt: "2026-01-01T00:00:00Z"
+            startsAt: "2026-01-01T00:00:00Z",
+            combinesWith: {
+              orderDiscounts: true,
+              productDiscounts: true,
+              shippingDiscounts: true
+            }
           }
         }
       }
