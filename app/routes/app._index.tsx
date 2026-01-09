@@ -344,6 +344,20 @@ export default function Index() {
   }
 };
 
+  const handleActivateCartTransform = async () => {
+  try {
+    const response = await fetch('/app/activate-cart-transform', {
+      method: 'POST',
+    });
+    const result = await response.json();
+    console.log('Cart Transform activation result:', result);
+    alert('Cart Transform activated!');
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error activating cart transform');
+  }
+};
+
   return (
     <Page title="Delivery Discount Manager">
       <Layout>
@@ -423,9 +437,17 @@ export default function Index() {
             <Text variant="headingMd" as="h2">
               Function Aktivasyonu
             </Text>
-            <Button onClick={handleActivateDiscount}>
-              Discount Function'ı Aktifleştir
-            </Button>
+            <Text as="p" tone="subdued">
+              İki yaklaşımdan birini seçin: Cart Transform (önerilen - diğer indirimlerle çalışır) veya Product Discount.
+            </Text>
+            <InlineStack gap="300">
+              <Button onClick={handleActivateCartTransform} variant="primary">
+                Cart Transform'u Aktifleştir (Önerilen)
+              </Button>
+              <Button onClick={handleActivateDiscount}>
+                Product Discount'u Aktifleştir
+              </Button>
+            </InlineStack>
           </BlockStack>
         </Card>
       </Layout.Section>
