@@ -1,0 +1,35 @@
+query CartTransformRunInput {
+  cart {
+    lines {
+      id
+      quantity
+      cost {
+        amountPerQuantity {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
+    attribute(key: "_selected_delivery_type") {
+      value
+    }
+    buyerIdentity {
+      customer {
+        id
+      }
+    }
+  }
+  shop {
+    deliveryDiscountSettings: metafield(
+      namespace: "delivery_discount"
+      key: "settings"
+    ) {
+      value
+    }
+  }
+}

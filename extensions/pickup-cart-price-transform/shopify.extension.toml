@@ -1,0 +1,21 @@
+api_version = "2025-07"
+
+[[extensions]]
+name = "Delivery Cart Price Adjuster"
+handle = "pickup-cart-price-transform"
+uid = "8d123331-3837-0fd5-3240-c9020d069ac98810f53f"
+type = "function"
+description = "Apply pickup/delivery discount by adjusting cart line prices directly - works after all other discounts"
+
+  [[extensions.targeting]]
+  target = "purchase.cart-transform.run"
+  input_query = "src/cart_transform_run.graphql"
+  export = "cart-transform-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.ui.paths]
+  create = "/"
+  details = "/"
