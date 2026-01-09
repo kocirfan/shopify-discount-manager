@@ -1,14 +1,14 @@
 api_version = "2025-04"
 
 [[extensions]]
-name = "Delivery Discount Manager"
-handle = "pickup-discount-order"
-uid = "b8d599e0-5942-d0ee-431a-3874d20d89c614ad8229"
+name = "Delivery Product Discount Manager"
+handle = "pickup-discount-product"
+uid = "243d994e-e8ce-4122-661e-041d832e168fe07390f8"
 type = "function"
-description = "Automatically apply discounts based on selected delivery method (pickup, shipping, etc.)"
+description = "Automatically apply product discounts based on selected delivery method (pickup, shipping, etc.)"
 
   [[extensions.targeting]]
-  target = "purchase.order-discount.run"
+  target = "purchase.product-discount.run"
   input_query = "src/cart_lines_discounts_generate_run.graphql"
   export = "run"
 

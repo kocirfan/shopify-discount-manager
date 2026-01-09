@@ -24,11 +24,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
     const discountFunction = functionsData.data?.shopifyFunctions?.nodes?.find(
-      (fn: any) => fn.apiType === "order_discounts"
+      (fn: any) => fn.apiType === "product_discounts" || fn.apiType === "order_discounts"
     );
 
     if (!discountFunction) {
-      console.error("❌ No order discount function found!");
+      console.error("❌ No discount function found!");
       return { success: false, error: "Discount function not found. Please deploy first." };
     }
 

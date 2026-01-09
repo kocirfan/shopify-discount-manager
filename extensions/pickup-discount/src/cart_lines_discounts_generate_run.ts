@@ -120,13 +120,17 @@ export function run(input: any) {
 
   console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
-  return {
-    discountApplicationStrategy: "FIRST",
-    discounts: [{
-      message: `${matchedMethod.discountValue}% korting`,
+  // Apply discount to each cart line (Product Discount)
+  // This will work on top of Sami Wholesale's order discount
+  const discounts = input.cart.lines.map((line: any) => {
+    console.error(`📦 Applying ${matchedMethod.discountValue}% to line ${line.id}`);
+
+    return {
+      message: `${matchedMethod.discountValue}% korting - ${matchedMethod.name}`,
       targets: [{
-        orderSubtotal: {
-          excludedVariantIds: []
+        productVariant: {
+          id: line.merchandise.id,
+          quantity: line.quantity
         }
       }],
       value: matchedMethod.discountType === 'percentage'
@@ -140,6 +144,13 @@ export function run(input: any) {
               amount: matchedMethod.discountValue.toFixed(2)
             }
           }
-    }]
+    };
+  });
+
+  console.error('✅ Returning', discounts.length, 'product discounts');
+
+  return {
+    discountApplicationStrategy: "FIRST",
+    discounts
   };
 }
