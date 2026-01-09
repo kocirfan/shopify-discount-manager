@@ -3,11 +3,14 @@ import {
   BlockStack,
   Text,
   DatePicker,
+  Banner,
+  InlineLayout,
+  Button,
 } from '@shopify/ui-extensions/checkout';
 
 export default extension(
   'purchase.checkout.block.render',
-  (root, { deliveryGroups, applyAttributeChange }) => {
+  (root, { deliveryGroups, applyAttributeChange, applyDiscountCodeChange }) => {
     console.log('[DELIVERY TRACKER] ✅ Extension initialized');
 
     let lastDeliveryType = null;
@@ -101,13 +104,18 @@ export default extension(
         console.log('[DELIVERY TRACKER] 📝 Updating cart attribute to:', deliveryType);
 
         try {
+          // Cart attribute'u güncelle
           await applyAttributeChange({
             type: 'updateAttribute',
             key: '_selected_delivery_type',
             value: deliveryType
           });
+
+          // Note: Automatic discount code application doesn't work with Sami Wholesale
+          // User will need to manually enter the code or we need a different approach
+
           lastDeliveryType = deliveryType;
-          console.log('[DELIVERY TRACKER] ✅ Cart attribute updated successfully');
+          console.log('[DELIVERY TRACKER] ✅ Cart attribute and discount updated successfully');
         } catch (error) {
           console.error('[DELIVERY TRACKER] ❌ Error updating attribute or discount:', error);
         }
@@ -123,13 +131,34 @@ export default extension(
       container.replaceChildren();
 
       if (deliveryType === 'pickup') {
-        // Pickup seçiliyse tarih picker göster
-        const heading = root.createComponent(Text, {
+        // Pickup seçiliyse önce discount banner göster
+        const discountBanner = root.createComponent(Banner, {
+          status: 'success',
+          title: '🎉 Pickup Korting!'
+        });
+
+        const discountText = root.createComponent(BlockStack, { spacing: 'tight' }, [
+          root.createComponent(Text, {
+            size: 'medium',
+            emphasis: 'bold'
+          }, '20% KORTING voor afhalen!'),
+          root.createComponent(Text, {
+            size: 'small',
+            appearance: 'subdued'
+          }, 'Gebruik kortingscode: PICKUP20'),
+          root.createComponent(Text, {
+            size: 'small',
+            emphasis: 'bold'
+          }, 'Voer de code hierboven in het kortingsveld in om uw korting te ontvangen.')
+        ]);
+
+        // Tarih picker başlık ve açıklama
+        const dateHeading = root.createComponent(Text, {
           size: 'base',
           emphasis: 'bold'
         }, 'Afhaaldatum');
 
-        const description = root.createComponent(Text, {
+        const dateDescription = root.createComponent(Text, {
           size: 'small',
           appearance: 'subdued'
         }, 'Selecteer uw gewenste afhaaldatum');
@@ -166,11 +195,14 @@ export default extension(
           }
         });
 
-        container.appendChild(heading);
-        container.appendChild(description);
+        // Banner ve içeriğini ekle
+        container.appendChild(discountBanner);
+        container.appendChild(discountText);
+        container.appendChild(dateHeading);
+        container.appendChild(dateDescription);
         container.appendChild(datePicker);
 
-        console.log('[DELIVERY TRACKER] 🗓️ Date picker shown');
+        console.log('[DELIVERY TRACKER] 🎉 Discount banner and date picker shown');
       } else {
         // Pickup değilse, tarihi temizle
         if (selectedDate) {

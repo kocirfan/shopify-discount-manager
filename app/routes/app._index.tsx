@@ -358,6 +358,24 @@ export default function Index() {
   }
 };
 
+const handleCreatePickupDiscount = async () => {
+  try {
+    const response = await fetch('/app/create-pickup-discount', {
+      method: 'POST',
+    });
+    const result = await response.json();
+    console.log('Pickup discount creation result:', result);
+    if (result.success) {
+      alert(result.message);
+    } else {
+      alert('Hata: ' + result.message);
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Error creating pickup discount');
+  }
+};
+
   return (
     <Page title="Delivery Discount Manager">
       <Layout>
@@ -432,6 +450,22 @@ export default function Index() {
         </Layout.Section>
 
               <Layout.Section>
+        <Card>
+          <BlockStack gap="300">
+            <Text variant="headingMd" as="h2">
+              PICKUP20 İndirim Kodu
+            </Text>
+            <Text as="p" tone="subdued">
+              Checkout'ta gösterilen PICKUP20 kodunu Shopify'da oluşturun. Bu kod Sami Wholesale ile birlikte çalışacak.
+            </Text>
+            <Button onClick={handleCreatePickupDiscount} variant="primary">
+              PICKUP20 Kodunu Oluştur
+            </Button>
+          </BlockStack>
+        </Card>
+      </Layout.Section>
+
+      <Layout.Section>
         <Card>
           <BlockStack gap="300">
             <Text variant="headingMd" as="h2">
