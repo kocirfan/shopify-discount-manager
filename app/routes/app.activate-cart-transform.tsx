@@ -107,6 +107,11 @@ export default function ActivateCartTransform() {
     submit({}, { method: "post" });
   };
 
+  const handleDeactivate = () => {
+    setIsLoading(true);
+    submit({}, { method: "post", action: "/app/deactivate-cart-transform" });
+  };
+
   return (
     <Page
       title="Activate Cart Transform"
@@ -163,16 +168,28 @@ export default function ActivateCartTransform() {
                 </ul>
               </div>
 
-              <Button
-                variant="primary"
-                onClick={handleActivate}
-                loading={isLoading && !actionData}
-                disabled={loaderData?.hasActiveTransform && !actionData?.success}
-              >
-                {loaderData?.hasActiveTransform && !actionData?.success
-                  ? "Cart Transform Already Active"
-                  : "Activate Cart Transform Function"}
-              </Button>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <Button
+                  variant="primary"
+                  onClick={handleActivate}
+                  loading={isLoading && !actionData}
+                  disabled={loaderData?.hasActiveTransform && !actionData?.success}
+                >
+                  {loaderData?.hasActiveTransform && !actionData?.success
+                    ? "Cart Transform Already Active"
+                    : "Activate Cart Transform Function"}
+                </Button>
+
+                {loaderData?.hasActiveTransform && (
+                  <Button
+                    tone="critical"
+                    onClick={handleDeactivate}
+                    loading={isLoading && !actionData}
+                  >
+                    Deactivate Cart Transform
+                  </Button>
+                )}
+              </div>
             </BlockStack>
           </Card>
         </Layout.Section>

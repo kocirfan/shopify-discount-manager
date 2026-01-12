@@ -1,0 +1,28 @@
+query Input {
+  cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
+    deliveryGroups {
+      id
+      selectedDeliveryOption {
+        handle
+        title
+        cost {
+          amount
+        }
+      }
+    }
+    attribute(key: "_selected_delivery_type") {
+      value
+    }
+    buyerIdentity {
+      customer {
+        id
+      }
+      email
+    }
+  }
+}

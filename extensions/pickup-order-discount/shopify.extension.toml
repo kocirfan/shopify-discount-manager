@@ -1,0 +1,17 @@
+api_version = "2025-04"
+
+[[extensions]]
+name = "Pickup Order Discount"
+handle = "pickup-order-discount"
+uid = "357ec63e-077a-705d-741f-874217ecfbfdfee801e9"
+type = "function"
+description = "Apply 2% order-level discount when pickup delivery method is selected"
+
+  [[extensions.targeting]]
+  target = "purchase.order-discount.run"
+  input_query = "src/order_discount_run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"

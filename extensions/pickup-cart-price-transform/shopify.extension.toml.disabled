@@ -10,7 +10,7 @@ description = "Apply pickup/delivery discount by adjusting cart line prices dire
   [[extensions.targeting]]
   target = "purchase.cart-transform.run"
   input_query = "src/cart_transform_run.graphql"
-  export = "cart-transform-run"
+  export = "run"
 
   [extensions.build]
   command = ""

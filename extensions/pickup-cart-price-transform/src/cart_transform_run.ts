@@ -7,7 +7,7 @@ const NO_CHANGES: CartTransformRunResult = {
   operations: [],
 };
 
-export function cartTransformRun(input: CartTransformRunInput): CartTransformRunResult {
+export function run(input: CartTransformRunInput): CartTransformRunResult {
   console.error('=== CART TRANSFORM START ===');
   console.error('Input:', JSON.stringify(input, null, 2));
 

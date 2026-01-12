@@ -132,7 +132,7 @@ export default extension(
         // Pickup seçiliyse discount banner göster
         const discountBanner = root.createComponent(Banner, {
           status: 'success',
-          title: '🎉 Pickup Korting!'
+          title: 'Pickup Korting!'
         });
 
         const discountText = root.createComponent(BlockStack, { spacing: 'tight' }, [
