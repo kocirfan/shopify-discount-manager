@@ -28,13 +28,15 @@ interface DeliveryMethod {
 interface LoaderData {
   settings: {
     deliveryMethods: DeliveryMethod[];
+    baseDiscountPercentage: number;
   };
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-  
+
   const deliveryMethods: DeliveryMethod[] = [];
+  let baseDiscountPercentage = 10; // Default TestKocirfan discount
 
   try {
     // Önce shop ID'sini ve kayıtlı ayarları alalım
@@ -49,6 +51,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             ) {
               value
             }
+            baseDiscountSettings: metafield(
+              namespace: "delivery_discount"
+              key: "base_discount"
+            ) {
+              value
+            }
           }
         }
       `
@@ -56,9 +64,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     const shopData = await shopResponse.json();
     const savedSettings = shopData.data.shop.deliveryDiscountSettings?.value;
-    
+    const savedBaseDiscount = shopData.data.shop.baseDiscountSettings?.value;
+
+    // Base discount'u yükle
+    if (savedBaseDiscount) {
+      try {
+        baseDiscountPercentage = parseFloat(savedBaseDiscount);
+        console.log("Loaded base discount:", baseDiscountPercentage);
+      } catch (error) {
+        console.error("Error parsing base discount:", error);
+      }
+    }
+
     let savedMethodsMap: Map<string, DeliveryMethod> = new Map();
-    
+
     // Kayıtlı ayarları parse et
     if (savedSettings) {
       try {
@@ -219,16 +238,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     );
   }
 
-  return { settings: { deliveryMethods } };
+  return { settings: { deliveryMethods, baseDiscountPercentage } };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const methods = JSON.parse(formData.get("methods") as string);
+  const baseDiscount = formData.get("baseDiscount") as string;
 
   console.log("=== SAVING SETTINGS ===");
   console.log("Methods to save:", JSON.stringify(methods, null, 2));
+  console.log("Base discount to save:", baseDiscount);
 
   try {
     // Önce shop ID'sini alalım
@@ -246,7 +267,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const shopId = shopData.data.shop.id;
     console.log("Shop ID:", shopId);
 
-    // Metafield'a kaydet
+    // Metafield'a kaydet (hem delivery methods hem base discount)
     const response = await admin.graphql(
       `#graphql
         mutation CreateMetafield($metafields: [MetafieldsSetInput!]!) {
@@ -271,6 +292,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               key: "settings",
               type: "json",
               value: JSON.stringify(methods),
+              ownerId: shopId,
+            },
+            {
+              namespace: "delivery_discount",
+              key: "base_discount",
+              type: "number_decimal",
+              value: baseDiscount,
               ownerId: shopId,
             },
           ],
@@ -308,6 +336,7 @@ export default function Index() {
   const actionData = useActionData<{ success: boolean; message: string }>();
   const submit = useSubmit();
   const [methods, setMethods] = useState(settings.deliveryMethods);
+  const [baseDiscount, setBaseDiscount] = useState(settings.baseDiscountPercentage);
 
   const handleToggle = (id: string) => {
     setMethods(
@@ -328,53 +357,27 @@ export default function Index() {
   const handleSave = () => {
     const formData = new FormData();
     formData.append("methods", JSON.stringify(methods));
+    formData.append("baseDiscount", baseDiscount.toString());
     submit(formData, { method: "post" });
   };
-  const handleActivateDiscount = async () => {
-  try {
-    const response = await fetch('/app/activate-discount', {
-      method: 'POST',
-    });
-    const result = await response.json();
-    console.log('Activation result:', result);
-    alert('Discount activated!');
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error activating discount');
-  }
-};
 
   const handleActivateCartTransform = async () => {
-  try {
-    const response = await fetch('/app/activate-cart-transform', {
-      method: 'POST',
-    });
-    const result = await response.json();
-    console.log('Cart Transform activation result:', result);
-    alert('Cart Transform activated!');
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error activating cart transform');
-  }
-};
-
-const handleCreatePickupDiscount = async () => {
-  try {
-    const response = await fetch('/app/create-pickup-discount', {
-      method: 'POST',
-    });
-    const result = await response.json();
-    console.log('Pickup discount creation result:', result);
-    if (result.success) {
-      alert(result.message);
-    } else {
-      alert('Hata: ' + result.message);
+    try {
+      const response = await fetch('/app/activate-cart-transform', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      console.log('Cart Transform activation result:', result);
+      if (result.success) {
+        alert('✅ Cart Transform başarıyla aktifleştirildi! Artık TestKocirfan ile birlikte çalışacak.');
+      } else {
+        alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Aktivasyon hatası');
     }
-  } catch (error) {
-    console.error('Error:', error);
-    alert('Error creating pickup discount');
-  }
-};
+  };
 
   return (
     <Page title="Delivery Discount Manager">
@@ -391,9 +394,30 @@ const handleCreatePickupDiscount = async () => {
           <Banner tone="info">
             <p>
               Teslimat metodlarına göre otomatik indirim uygulayın. Pickup
-              seçildiğinde sepete %2 indirim gibi.
+              seçildiğinde sepete %20 indirim otomatik uygulanır.
             </p>
           </Banner>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h2">
+                🎯 Temel İndirim Oranı
+              </Text>
+              <Text as="p" tone="subdued">
+                Diğer indirimlerle birlikte uygulanacak temel indirim yüzdesi (örn: TestKocirfan, müşteri segmentasyonu)
+              </Text>
+              <TextField
+                label="Temel İndirim Yüzdesi (%)"
+                type="number"
+                value={baseDiscount.toString()}
+                onChange={(value) => setBaseDiscount(parseFloat(value) || 0)}
+                autoComplete="off"
+                helpText="Bu oran pickup indirimiyle birleştirilecek (compound discount)"
+              />
+            </BlockStack>
+          </Card>
         </Layout.Section>
 
         <Layout.Section>
@@ -449,43 +473,22 @@ const handleCreatePickupDiscount = async () => {
           </BlockStack>
         </Layout.Section>
 
-              <Layout.Section>
-        <Card>
-          <BlockStack gap="300">
-            <Text variant="headingMd" as="h2">
-              PICKUP20 İndirim Kodu
-            </Text>
-            <Text as="p" tone="subdued">
-              Checkout'ta gösterilen PICKUP20 kodunu Shopify'da oluşturun. Bu kod Sami Wholesale ile birlikte çalışacak.
-            </Text>
-            <Button onClick={handleCreatePickupDiscount} variant="primary">
-              PICKUP20 Kodunu Oluştur
-            </Button>
-          </BlockStack>
-        </Card>
-      </Layout.Section>
-
-      <Layout.Section>
-        <Card>
-          <BlockStack gap="300">
-            <Text variant="headingMd" as="h2">
-              Function Aktivasyonu
-            </Text>
-            <Text as="p" tone="subdued">
-              İki yaklaşımdan birini seçin: Cart Transform (önerilen - diğer indirimlerle çalışır) veya Product Discount.
-            </Text>
-            <InlineStack gap="300">
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h2">
+                🔧 Cart Transform Aktivasyonu
+              </Text>
+              <Text as="p" tone="subdued">
+                TestKocirfan gibi diğer indirimlerle birlikte çalışabilmesi için Cart Transform'u aktifleştirin.
+                Bu sayede hem TestKocirfan'ın %10 indirimi hem de pickup %20 indirimi birlikte uygulanacak.
+              </Text>
               <Button onClick={handleActivateCartTransform} variant="primary">
-                Cart Transform'u Aktifleştir (Önerilen)
+                Cart Transform'u Aktifleştir
               </Button>
-              <Button onClick={handleActivateDiscount}>
-                Product Discount'u Aktifleştir
-              </Button>
-            </InlineStack>
-          </BlockStack>
-        </Card>
-      </Layout.Section>
-
+            </BlockStack>
+          </Card>
+        </Layout.Section>
 
         <Layout.Section>
           <Card>

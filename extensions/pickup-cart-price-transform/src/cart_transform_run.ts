@@ -50,7 +50,7 @@ export function cartTransformRun(input: CartTransformRunInput): CartTransformRun
 
   // Seçilen delivery type ile eşleşen metodu bul
   const matchedMethod = activeMethods.find((m: any) => m.type === selectedDeliveryType);
-  
+
   if (!matchedMethod) {
     console.error('❌ No matched method for type:', selectedDeliveryType);
     return NO_CHANGES;
@@ -58,13 +58,34 @@ export function cartTransformRun(input: CartTransformRunInput): CartTransformRun
 
   console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
-  // Her cart line için fiyat düşürme operasyonu oluştur
+  // SADECE PICKUP İÇİN EK İNDİRİM UYGULA
+  // Diğer teslimat yöntemleri için hiçbir şey yapma
+  if (selectedDeliveryType !== 'pickup') {
+    console.error('⚠️ Not pickup delivery, skipping cart transform');
+    return NO_CHANGES;
+  }
+
+  // Pickup seçiliyse, mevcut fiyat üzerinden %2 ek indirim uygula
+  // Cart Transform, automatic discount'tan SONRA çalışır
+  // Bu yüzden line.cost.amountPerQuantity zaten indirimli fiyatı içerir
+  const pickupDiscountPercent = matchedMethod.discountValue; // örn: 2
+
+  // Her cart line için ek %2 indirim operasyonu oluştur
   const operations = input.cart.lines.map((line: any) => {
     const currentPrice = parseFloat(line.cost.amountPerQuantity.amount);
-    const discountPercent = matchedMethod.discountValue / 100;
-    const newPrice = currentPrice * (1 - discountPercent);
 
-    console.error(`📦 Line ${line.id}: ${currentPrice} -> ${newPrice.toFixed(2)} (${matchedMethod.discountValue}% off)`);
+    // Mevcut fiyat üzerinden pickup indirimi uygula (compound)
+    // Örnek: €90 (zaten %10 indirimli) -> €90 * 0.98 = €88.20
+    const pickupDiscountDecimal = pickupDiscountPercent / 100;
+    const finalMultiplier = 1 - pickupDiscountDecimal;
+    const newPrice = currentPrice * finalMultiplier;
+
+    const discountAmount = currentPrice - newPrice;
+
+    console.error(
+      `📦 Line ${line.id}: €${currentPrice.toFixed(2)} -> €${newPrice.toFixed(2)} ` +
+      `(Pickup ${pickupDiscountPercent}% = -€${discountAmount.toFixed(2)})`
+    );
 
     return {
       update: {

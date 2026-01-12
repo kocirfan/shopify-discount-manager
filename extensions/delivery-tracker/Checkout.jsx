@@ -10,7 +10,7 @@ import {
 
 export default extension(
   'purchase.checkout.block.render',
-  (root, { deliveryGroups, applyAttributeChange, applyDiscountCodeChange }) => {
+  (root, { deliveryGroups, applyAttributeChange }) => {
     console.log('[DELIVERY TRACKER] ✅ Extension initialized');
 
     let lastDeliveryType = null;
@@ -105,19 +105,17 @@ export default extension(
 
         try {
           // Cart attribute'u güncelle
+          // Cart Transform bu attribute'u okuyarak pickup indirimini otomatik uygulayacak
           await applyAttributeChange({
             type: 'updateAttribute',
             key: '_selected_delivery_type',
             value: deliveryType
           });
 
-          // Note: Automatic discount code application doesn't work with Sami Wholesale
-          // User will need to manually enter the code or we need a different approach
-
           lastDeliveryType = deliveryType;
-          console.log('[DELIVERY TRACKER] ✅ Cart attribute and discount updated successfully');
+          console.log('[DELIVERY TRACKER] ✅ Cart attribute updated - Cart Transform will apply pickup discount automatically');
         } catch (error) {
-          console.error('[DELIVERY TRACKER] ❌ Error updating attribute or discount:', error);
+          console.error('[DELIVERY TRACKER] ❌ Error updating attribute:', error);
         }
       }
 
@@ -131,7 +129,7 @@ export default extension(
       container.replaceChildren();
 
       if (deliveryType === 'pickup') {
-        // Pickup seçiliyse önce discount banner göster
+        // Pickup seçiliyse discount banner göster
         const discountBanner = root.createComponent(Banner, {
           status: 'success',
           title: '🎉 Pickup Korting!'
@@ -141,15 +139,11 @@ export default extension(
           root.createComponent(Text, {
             size: 'medium',
             emphasis: 'bold'
-          }, '20% KORTING voor afhalen!'),
+          }, '2% extra korting voor afhalen!'),
           root.createComponent(Text, {
             size: 'small',
             appearance: 'subdued'
-          }, 'Gebruik kortingscode: PICKUP20'),
-          root.createComponent(Text, {
-            size: 'small',
-            emphasis: 'bold'
-          }, 'Voer de code hierboven in het kortingsveld in om uw korting te ontvangen.')
+          }, 'Deze korting wordt automatisch toegepast bij het afrekenen.')
         ]);
 
         // Tarih picker başlık ve açıklama

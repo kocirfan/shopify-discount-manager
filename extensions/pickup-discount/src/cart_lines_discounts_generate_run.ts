@@ -120,6 +120,14 @@ export function run(input: any) {
 
   console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
+  // ÖNEMLI: Pickup için Product Discount uygulama
+  // Cart Transform zaten pickup için %2 ek indirim uygluyor
+  // Bu yüzden pickup için burada hiçbir şey yapma
+  if (matchedMethod.type === 'pickup') {
+    console.error('⚠️ Pickup detected - skipping Product Discount (Cart Transform will handle it)');
+    return emptyReturn;
+  }
+
   // Apply discount to each cart line (Product Discount)
   // This will work on top of Sami Wholesale's order discount
   const discounts = input.cart.lines.map((line: any) => {
