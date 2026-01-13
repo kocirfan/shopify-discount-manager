@@ -98,7 +98,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ActivateCartTransform() {
   const submit = useSubmit();
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData<any>();
   const loaderData = useLoaderData<typeof loader>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -121,19 +121,26 @@ export default function ActivateCartTransform() {
       <Layout>
         <Layout.Section>
           {loaderData?.hasActiveTransform && !actionData && (
-            <Banner tone="info" title="Cart Transform Already Active">
-              A Cart Transform function is already active on your store. Only one cart transform can be active at a time.
+            <Banner tone="warning" title="⚠️ Cart Transform is Currently Active">
+              <p>Cart Transform modifies product prices directly. If you're also using Order Discount, this can cause duplicate discounts.</p>
+              <p><strong>Click "Deactivate Cart Transform" below to use only Order Discount (recommended).</strong></p>
             </Banner>
           )}
 
-          {actionData?.success && (
-            <Banner tone="success" title="Success!">
-              Cart Transform function has been activated successfully. Pickup discounts will now be applied automatically!
+          {actionData?.success && actionData?.deactivated && (
+            <Banner tone="success" title="✅ Cart Transform Deactivated!">
+              Cart Transform has been deactivated successfully. Now only Order Discount will apply to the cart subtotal (no duplicate discounts).
+            </Banner>
+          )}
+
+          {actionData?.success && !actionData?.deactivated && (
+            <Banner tone="success" title="✅ Cart Transform Activated!">
+              Cart Transform function has been activated successfully. Pickup discounts will now be applied to product prices!
             </Banner>
           )}
 
           {actionData?.success === false && (
-            <Banner tone="critical" title="Error activating Cart Transform">
+            <Banner tone="critical" title="❌ Error">
               {actionData.error || "Unknown error occurred"}
               {actionData.errors && (
                 <BlockStack gap="200">
@@ -150,45 +157,51 @@ export default function ActivateCartTransform() {
           <Card>
             <BlockStack gap="400">
               <div>
-                <strong>What is Cart Transform?</strong>
+                <strong>⚠️ Warning: Cart Transform vs Order Discount</strong>
                 <p>
-                  Cart Transform is a Shopify Function that automatically adjusts cart prices
-                  based on the selected delivery method. When customers choose pickup, it applies
-                  an additional 2% discount on top of any existing discounts.
+                  <strong>Cart Transform</strong> modifies product prices directly in the cart.
+                  This can cause <strong>duplicate discounts</strong> if you're also using Order Discount function.
                 </p>
               </div>
 
               <div>
-                <strong>How it works:</strong>
+                <strong>Recommendation:</strong>
                 <ul>
-                  <li>Customer selects pickup at checkout</li>
-                  <li>Cart Transform automatically applies 2% additional discount</li>
-                  <li>Discount is invisible to customer (no code shown)</li>
-                  <li>Discount is automatically removed if pickup is deselected</li>
+                  <li>✅ <strong>Use Order Discount only</strong> - Applies discount to cart subtotal (cleaner, no duplicates)</li>
+                  <li>❌ <strong>Avoid using both</strong> - Cart Transform + Order Discount = duplicate discounts</li>
                 </ul>
               </div>
 
-              <div style={{ display: "flex", gap: "12px" }}>
-                <Button
-                  variant="primary"
-                  onClick={handleActivate}
-                  loading={isLoading && !actionData}
-                  disabled={loaderData?.hasActiveTransform && !actionData?.success}
-                >
-                  {loaderData?.hasActiveTransform && !actionData?.success
-                    ? "Cart Transform Already Active"
-                    : "Activate Cart Transform Function"}
-                </Button>
+              <div>
+                <strong>What is Cart Transform?</strong>
+                <p>
+                  Cart Transform adjusts individual product prices based on delivery method.
+                  When pickup is selected, it reduces each product's price by the discount percentage.
+                </p>
+              </div>
 
+              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                 {loaderData?.hasActiveTransform && (
                   <Button
+                    variant="primary"
                     tone="critical"
                     onClick={handleDeactivate}
                     loading={isLoading && !actionData}
                   >
-                    Deactivate Cart Transform
+                    🛑 Deactivate Cart Transform (Recommended)
                   </Button>
                 )}
+
+                <Button
+                  variant={loaderData?.hasActiveTransform ? "secondary" : "primary"}
+                  onClick={handleActivate}
+                  loading={isLoading && !actionData}
+                  disabled={loaderData?.hasActiveTransform}
+                >
+                  {loaderData?.hasActiveTransform
+                    ? "✅ Already Active"
+                    : "Activate Cart Transform"}
+                </Button>
               </div>
             </BlockStack>
           </Card>

@@ -20,13 +20,17 @@ type FunctionResult = {
       };
     }[];
   }[];
+  discountApplicationStrategy: "FIRST" | "MAXIMUM";
 };
 
 export function run(input: RunInput): FunctionResult {
   console.error('=== PICKUP ORDER DISCOUNT START ===');
 
   const cart = input.cart;
-  const emptyReturn = { discounts: [] };
+  const emptyReturn: FunctionResult = {
+    discounts: [],
+    discountApplicationStrategy: "FIRST"
+  };
 
   // Check cart attribute first (set by Delivery Tracker UI)
   const selectedDeliveryType = cart.attribute?.value;
@@ -91,5 +95,6 @@ export function run(input: RunInput): FunctionResult {
         ]
       },
     ],
+    discountApplicationStrategy: "FIRST"
   };
 }
