@@ -1,5 +1,15 @@
 query Input {
   cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
     cost {
       subtotalAmount {
         amount
@@ -14,8 +24,18 @@ query Input {
           amount
         }
       }
+      deliveryOptions {
+        handle
+        title
+        cost {
+          amount
+        }
+      }
     }
     attribute(key: "_selected_delivery_type") {
+      value
+    }
+    pickupDate: attribute(key: "pickup_delivery_date") {
       value
     }
     buyerIdentity {

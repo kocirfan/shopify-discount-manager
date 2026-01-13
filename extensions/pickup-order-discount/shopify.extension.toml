@@ -1,11 +1,11 @@
-api_version = "2025-04"
+api_version = "2025-07"
 
 [[extensions]]
 name = "Pickup Order Discount"
 handle = "pickup-order-discount"
 uid = "357ec63e-077a-705d-741f-874217ecfbfdfee801e9"
 type = "function"
-description = "Apply 2% order-level discount when pickup delivery method is selected"
+description = "Apply 2% order-level discount on cart subtotal when pickup delivery method is selected"
 
   [[extensions.targeting]]
   target = "purchase.order-discount.run"

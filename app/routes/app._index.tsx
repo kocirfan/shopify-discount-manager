@@ -379,6 +379,24 @@ export default function Index() {
     }
   };
 
+  const handleActivateOrderDiscount = async () => {
+    try {
+      const response = await fetch('/app/activate-discount', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      console.log('Order Discount activation result:', result);
+      if (result.success) {
+        alert('✅ Order Discount başarıyla aktifleştirildi! Pickup seçildiğinde otomatik sepet indirimi uygulanacak.');
+      } else {
+        alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Aktivasyon hatası');
+    }
+  };
+
   return (
     <Page title="Delivery Discount Manager">
       <Layout>
@@ -477,13 +495,30 @@ export default function Index() {
           <Card>
             <BlockStack gap="300">
               <Text variant="headingMd" as="h2">
-                🔧 Cart Transform Aktivasyonu
+                ⚡ Order Discount Aktivasyonu (ÖNERİLEN)
               </Text>
               <Text as="p" tone="subdued">
-                TestKocirfan gibi diğer indirimlerle birlikte çalışabilmesi için Cart Transform'u aktifleştirin.
-                Bu sayede hem TestKocirfan'ın %10 indirimi hem de pickup %20 indirimi birlikte uygulanacak.
+                Pickup seçildiğinde sepet toplamına otomatik indirim uygulamak için Order Discount function'ını aktifleştirin.
+                Bu indirim diğer indirimlerle (TESTKOCIRFAN) birlikte çalışır ve checkout'ta görünür olur.
               </Text>
-              <Button onClick={handleActivateCartTransform} variant="primary">
+              <Button onClick={handleActivateOrderDiscount} variant="primary">
+                Order Discount'u Aktifleştir
+              </Button>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h2">
+                🔧 Cart Transform (Alternatif)
+              </Text>
+              <Text as="p" tone="subdued">
+                Alternatif olarak Cart Transform kullanılabilir ancak Order Discount önerilir.
+                Cart Transform ürün fiyatlarını değiştirir, Order Discount sepet toplamına indirim uygular.
+              </Text>
+              <Button onClick={handleActivateCartTransform}>
                 Cart Transform'u Aktifleştir
               </Button>
             </BlockStack>

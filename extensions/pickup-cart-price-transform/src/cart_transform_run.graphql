@@ -7,6 +7,9 @@ query CartTransformRunInput {
         amountPerQuantity {
           amount
         }
+        subtotalAmount {
+          amount
+        }
       }
       merchandise {
         __typename

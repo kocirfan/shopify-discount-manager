@@ -9,7 +9,7 @@ const NO_CHANGES: CartTransformRunResult = {
 
 export function run(input: CartTransformRunInput): CartTransformRunResult {
   console.error('=== CART TRANSFORM START ===');
-  console.error('Input:', JSON.stringify(input, null, 2));
+  console.error('Cart lines count:', input.cart?.lines?.length || 0);
 
   // Gerekli verileri kontrol et
   if (!input.cart?.lines?.length) {
@@ -21,7 +21,7 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
   console.error('🏷️ Selected delivery type:', selectedDeliveryType);
 
   if (!selectedDeliveryType) {
-    console.error('❌ No delivery type selected');
+    console.error('⚠️ No delivery type selected yet - waiting for customer selection');
     return NO_CHANGES;
   }
 
@@ -56,7 +56,7 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
     return NO_CHANGES;
   }
 
-  console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
+  console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue, '%');
 
   // SADECE PICKUP İÇİN EK İNDİRİM UYGULA
   // Diğer teslimat yöntemleri için hiçbir şey yapma
@@ -65,10 +65,13 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
     return NO_CHANGES;
   }
 
-  // Pickup seçiliyse, mevcut fiyat üzerinden %2 ek indirim uygula
-  // Cart Transform, automatic discount'tan SONRA çalışır
-  // Bu yüzden line.cost.amountPerQuantity zaten indirimli fiyatı içerir
+  // Pickup seçiliyse, mevcut fiyat üzerinden ek indirim uygula
+  // Cart Transform, Product Discount'tan SONRA çalışır
+  // Bu yüzden line.cost.amountPerQuantity zaten customer segment indirimleri ile indirimli fiyatı içerir
+  // Örnek: €100 -> Product Discount %10 -> €90 -> Cart Transform %2 -> €88.20
   const pickupDiscountPercent = matchedMethod.discountValue; // örn: 2
+
+  console.error('🎯 Applying additional', pickupDiscountPercent, '% pickup discount on top of existing discounts');
 
   // Her cart line için ek %2 indirim operasyonu oluştur
   const operations = input.cart.lines.map((line: any) => {

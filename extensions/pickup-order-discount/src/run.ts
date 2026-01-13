@@ -2,8 +2,6 @@ import type {
   RunInput,
 } from "../generated/api";
 
-const DISCOUNT_PERCENTAGE = 2;
-
 // Order discount function output type
 type FunctionResult = {
   discounts: {
@@ -25,45 +23,56 @@ type FunctionResult = {
 };
 
 export function run(input: RunInput): FunctionResult {
+  console.error('=== PICKUP ORDER DISCOUNT START ===');
+
   const cart = input.cart;
+  const emptyReturn = { discounts: [] };
 
-  console.error('[PICKUP ORDER DISCOUNT] Starting...');
+  // Check cart attribute first (set by Delivery Tracker UI)
+  const selectedDeliveryType = cart.attribute?.value;
+  console.error('🏷️ Selected delivery type (from attribute):', selectedDeliveryType);
 
-  // Check if pickup delivery is selected
-  const hasPickup = cart.deliveryGroups?.some((group) => {
-    const selected = group.selectedDeliveryOption;
-    if (!selected) return false;
-
-    const title = selected.title?.toLowerCase() || "";
-    const handle = selected.handle?.toLowerCase() || "";
-
-    // Check for pickup keywords
-    return (
-      title.includes("pickup") ||
-      title.includes("ophalen") ||
-      title.includes("afhalen") ||
-      title.includes("terheijdenseweg") ||
-      handle.includes("pickup")
-    );
-  });
-
-  console.error('[PICKUP ORDER DISCOUNT] Is pickup:', hasPickup);
-
-  if (!hasPickup) {
-    console.error('[PICKUP ORDER DISCOUNT] Not pickup, no discount');
-    return {
-      discounts: [],
-    };
+  // If not pickup, return early
+  if (selectedDeliveryType !== 'pickup') {
+    console.error('⚠️ Not pickup delivery, no order discount');
+    return emptyReturn;
   }
 
-  // Calculate 2% discount on cart subtotal
+  // Get settings from metafield
+  const settingsJson = input.shop?.deliveryDiscountSettings?.value;
+  if (!settingsJson) {
+    console.error('❌ No settings in metafield');
+    return emptyReturn;
+  }
+
+  let settings;
+  try {
+    settings = JSON.parse(settingsJson);
+    console.error('✅ Settings loaded:', settings.length, 'methods');
+  } catch (e) {
+    console.error('❌ Parse error');
+    return emptyReturn;
+  }
+
+  // Find active pickup method
+  const pickupMethod = settings.find((m: any) => m.type === 'pickup' && m.enabled);
+
+  if (!pickupMethod) {
+    console.error('❌ No active pickup method found');
+    return emptyReturn;
+  }
+
+  console.error('✅ MATCHED:', pickupMethod.name, '| Discount:', pickupMethod.discountValue, '%');
+
+  // Calculate discount on cart subtotal
   const subtotal = parseFloat(cart.cost.subtotalAmount.amount);
-  const discountAmount = (subtotal * (DISCOUNT_PERCENTAGE / 100)).toFixed(2);
+  const discountPercent = pickupMethod.discountValue;
+  const discountAmount = (subtotal * (discountPercent / 100)).toFixed(2);
 
-  console.error('[PICKUP ORDER DISCOUNT] Subtotal:', subtotal);
-  console.error('[PICKUP ORDER DISCOUNT] Discount amount:', discountAmount);
+  console.error('💰 Subtotal:', subtotal.toFixed(2));
+  console.error('💰 Discount:', discountPercent, '% = €', discountAmount);
 
-  // Return order-level discount (applies to entire cart)
+  // Return order-level discount (applies to entire cart subtotal)
   return {
     discounts: [
       {
@@ -72,7 +81,7 @@ export function run(input: RunInput): FunctionResult {
             amount: discountAmount,
           },
         },
-        message: `${DISCOUNT_PERCENTAGE}% korting bij afhalen`,
+        message: `${discountPercent}% korting bij afhalen`,
         targets: [
           {
             orderSubtotal: {

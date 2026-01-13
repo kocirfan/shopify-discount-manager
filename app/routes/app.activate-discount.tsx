@@ -23,16 +23,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const functionsData = await functionsResponse.json();
     console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
+    // Find ORDER discount function specifically (not product discount)
     const discountFunction = functionsData.data?.shopifyFunctions?.nodes?.find(
-      (fn: any) => fn.apiType === "product_discounts" || fn.apiType === "order_discounts"
+      (fn: any) => fn.apiType === "order_discounts" && fn.title?.toLowerCase().includes("pickup")
     );
 
     if (!discountFunction) {
-      console.error("❌ No discount function found!");
-      return { success: false, error: "Discount function not found. Please deploy first." };
+      console.error("❌ No order discount function found!");
+      console.error("Available functions:", functionsData.data?.shopifyFunctions?.nodes?.map((f: any) => ({ title: f.title, type: f.apiType })));
+      return { success: false, error: "Order discount function not found. Please deploy first." };
     }
 
-    console.log("Using function:", discountFunction);
+    console.log("Using ORDER discount function:", discountFunction);
 
     const response = await admin.graphql(
       `#graphql
@@ -57,9 +59,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       {
         variables: {
           automaticAppDiscount: {
-            title: "Teslimat İndirimi",
+            title: "Pickup Afhaal Korting (Automatisch)",
             functionId: discountFunction.id,
-            startsAt: "2026-01-01T00:00:00Z",
+            startsAt: "2024-01-01T00:00:00Z",
             combinesWith: {
               orderDiscounts: true,
               productDiscounts: true,

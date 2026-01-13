@@ -1,2 +1,2 @@
-// export * from './run';
-export { run } from './cart_lines_discounts_generate_run.js';
+// Order discount: applies to entire cart subtotal (not individual products)
+export { run } from './run.js';
