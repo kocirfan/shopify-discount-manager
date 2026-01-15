@@ -1,0 +1,17 @@
+api_version = "2025-07"
+
+[[extensions]]
+name = "Customer Tag Product Discount"
+handle = "customer-tag-product-discount"
+uid = "42a6b3d1-6c2e-3aab-7c43-012905a2a0641edf21a1"
+type = "function"
+description = "Apply automatic discounts to individual product prices based on customer tags."
+
+  [[extensions.targeting]]
+  target = "purchase.product-discount.run"
+  input_query = "src/run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"

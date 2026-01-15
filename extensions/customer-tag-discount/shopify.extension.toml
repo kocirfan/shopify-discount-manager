@@ -1,0 +1,17 @@
+api_version = "2025-07"
+
+[[extensions]]
+name = "Customer Tag Discount"
+handle = "customer-tag-discount"
+uid = "8972902d-0b92-fda8-9679-d2685aaa7cf4c728f995"
+type = "function"
+description = "Apply automatic discounts based on customer tags (ORDER LEVEL - DEPRECATED)."
+
+  [[extensions.targeting]]
+  target = "purchase.order-discount.run"
+  input_query = "src/run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"

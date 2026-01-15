@@ -3069,17 +3069,7 @@ export enum WeightUnit {
   Pounds = 'POUNDS'
 }
 
-export type DeliveryInputVariables = Exact<{ [key: string]: never; }>;
-
-
-export type DeliveryInput = { __typename?: 'Input', cart: { __typename?: 'Cart', deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string }> }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
-
 export type InputVariables = Exact<{ [key: string]: never; }>;
 
 
-export type Input = { __typename?: 'Input', cart: { __typename?: 'Cart', cost: { __typename?: 'CartCost', subtotalAmount: { __typename?: 'MoneyV2', amount: any } }, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string, selectedDeliveryOption?: { __typename?: 'CartDeliveryOption', handle: any, title?: string | null, cost: { __typename?: 'MoneyV2', amount: any } } | null }>, attribute?: { __typename?: 'Attribute', value?: string | null } | null, buyerIdentity?: { __typename?: 'BuyerIdentity', email?: string | null, customer?: { __typename?: 'Customer', id: string } | null } | null }, shop: { __typename?: 'Shop', deliveryDiscountSettings?: { __typename?: 'Metafield', value: string } | null } };
-
-export type RunInputVariables = Exact<{ [key: string]: never; }>;
-
-
-export type RunInput = { __typename?: 'Input', cart: { __typename?: 'Cart', cost: { __typename?: 'CartCost', subtotalAmount: { __typename?: 'MoneyV2', amount: any } }, attribute?: { __typename?: 'Attribute', value?: string | null } | null, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', selectedDeliveryOption?: { __typename?: 'CartDeliveryOption', title?: string | null, handle: any } | null }> }, shop: { __typename?: 'Shop', deliveryDiscountSettings?: { __typename?: 'Metafield', value: string } | null } };
+export type Input = { __typename?: 'Input', cart: { __typename?: 'Cart', cost: { __typename?: 'CartCost', subtotalAmount: { __typename?: 'MoneyV2', amount: any } }, buyerIdentity?: { __typename?: 'BuyerIdentity', customer?: { __typename?: 'Customer', id: string, email?: string | null, hasTags: Array<{ __typename?: 'HasTagResponse', hasTag: boolean, tag: string }> } | null } | null }, shop: { __typename?: 'Shop', customerTagDiscountRules?: { __typename?: 'Metafield', value: string } | null } };

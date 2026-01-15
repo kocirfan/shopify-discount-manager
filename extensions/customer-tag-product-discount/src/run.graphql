@@ -1,0 +1,48 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            id
+            title
+          }
+        }
+      }
+      cost {
+        amountPerQuantity {
+          amount
+          currencyCode
+        }
+      }
+    }
+    buyerIdentity {
+      customer {
+        id
+        email
+        hasTags(tags: [
+          "disc-5", "disc-10", "disc-15", "disc-20", "disc-25", "disc-30",
+          "disc-35", "disc-40", "disc-45", "disc-50",
+          "vip", "wholesale", "premium", "gold", "silver", "bronze",
+          "partner", "employee", "reseller", "b2b",
+          "loyalty-1", "loyalty-2", "loyalty-3", "loyalty-4", "loyalty-5"
+        ]) {
+          hasTag
+          tag
+        }
+      }
+    }
+  }
+  shop {
+    customerTagDiscountRules: metafield(
+      namespace: "customer_tag_discount"
+      key: "rules"
+    ) {
+      value
+    }
+  }
+}
