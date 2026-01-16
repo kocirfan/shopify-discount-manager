@@ -1,0 +1,5 @@
+api_version = "2025-01"
+uid = "ca1d3651-4cc2-b841-b0b5-e79a07f329adcd17b4de"
+type = "theme"
+name = "Customer Discount Price Display"
+handle = "price-display"

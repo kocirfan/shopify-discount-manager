@@ -1,0 +1,123 @@
+{% comment %}
+  Customer Discount Price Loader
+  Bu block, theme'e eklendiğinde müşteri indirimlerini fiyatlara uygular.
+  
+  Theme Editor'da "Customer Discount Price Display" olarak görünür.
+  Header veya Footer bölümüne eklenmeli.
+{% endcomment %}
+
+{% if customer %}
+  <script id="customer-discount-data" type="application/json">
+    {
+      "isLoggedIn": true,
+      "customerId": {{ customer.id | json }},
+      "customerEmail": {{ customer.email | json }},
+      "customerTags": {{ customer.tags | json }},
+      "settings": {
+        "showOriginalPrice": {{ block.settings.show_original_price | json }},
+        "showDiscountBadge": {{ block.settings.show_discount_badge | json }},
+        "badgeColor": {{ block.settings.badge_color | json }},
+        "discountedPriceColor": {{ block.settings.discounted_price_color | json }}
+      }
+    }
+  </script>
+  
+  <style>
+    :root {
+      --cdp-discounted-color: {{ block.settings.discounted_price_color | default: '#e53935' }};
+      --cdp-badge-color: {{ block.settings.badge_color | default: '#e53935' }};
+    }
+    
+    .cdp-price-wrapper {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .cdp-original-price {
+      text-decoration: line-through;
+      opacity: 0.6;
+      font-size: 0.9em;
+      {% unless block.settings.show_original_price %}
+      display: none !important;
+      {% endunless %}
+    }
+    
+    .cdp-discounted-price {
+      color: var(--cdp-discounted-color);
+      font-weight: bold;
+    }
+    
+    .cdp-discount-badge {
+      background: var(--cdp-badge-color);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75em;
+      font-weight: bold;
+      {% unless block.settings.show_discount_badge %}
+      display: none !important;
+      {% endunless %}
+    }
+    
+    /* İndirim banner'ı */
+    .cdp-discount-banner {
+      background: linear-gradient(135deg, var(--cdp-badge-color), #ff6b6b);
+      color: white;
+      padding: 8px 16px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 500;
+    }
+  </style>
+  
+  {% if block.settings.show_discount_banner %}
+  <div class="cdp-discount-banner">
+    🎉 Özel müşteri indirimi aktif! Fiyatlar otomatik olarak güncellendi.
+  </div>
+  {% endif %}
+  
+  {{ 'customer-discount-prices.js' | asset_url | script_tag }}
+{% endif %}
+
+{% schema %}
+{
+  "name": "Customer Discount Prices",
+  "target": "head",
+  "javascript": "customer-discount-prices.js",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_original_price",
+      "label": "Orijinal fiyatı göster (üstü çizili)",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_discount_badge",
+      "label": "İndirim yüzdesi badge'ini göster",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_discount_banner",
+      "label": "İndirim banner'ı göster",
+      "default": false
+    },
+    {
+      "type": "color",
+      "id": "badge_color",
+      "label": "Badge rengi",
+      "default": "#e53935"
+    },
+    {
+      "type": "color",
+      "id": "discounted_price_color",
+      "label": "İndirimli fiyat rengi",
+      "default": "#e53935"
+    }
+  ]
+}
+{% endschema %}
+

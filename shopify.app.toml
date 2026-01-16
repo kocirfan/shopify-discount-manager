@@ -26,7 +26,7 @@ api_version = "2026-04"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_discounts,read_locations,read_orders,read_shipping,write_discounts,write_orders,write_products,write_shipping,write_cart_transforms"
+scopes = "read_discounts,read_locations,read_orders,read_shipping,write_discounts,write_orders,write_products,write_shipping,write_cart_transforms,read_customers"
 
 [auth]
 redirect_urls = [
@@ -34,3 +34,8 @@ redirect_urls = [
   "https://shopify-discount-manager.vercel.app/auth/shopify/callback",
   "https://shopify-discount-manager.vercel.app/api/auth/callback"
 ]
+
+[app_proxy]
+url = "https://shopify-discount-manager.vercel.app"
+subpath = "discount-manager"
+prefix = "apps"

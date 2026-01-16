@@ -1,0 +1,48 @@
+{% comment %}
+  Customer Discount Price Display - Initialization Snippet
+  Bu snippet, müşteri indirimli fiyatları göstermek için JavaScript'i yükler.
+  
+  Kullanım: Theme'in layout/theme.liquid dosyasında </body> öncesine ekleyin:
+  {% render 'customer-discount-init' %}
+{% endcomment %}
+
+{% if customer %}
+  <script>
+    // Müşteri giriş yapmış - indirim bilgisini ön yükle
+    window.customerDiscountData = {
+      isLoggedIn: true,
+      customerId: {{ customer.id | json }},
+      customerEmail: {{ customer.email | json }},
+      customerTags: {{ customer.tags | json }}
+    };
+  </script>
+  
+  <style>
+    :root {
+      --cdp-discounted-color: {{ block.settings.discounted_price_color | default: '#e53935' }};
+      --cdp-badge-color: {{ block.settings.badge_color | default: '#e53935' }};
+    }
+    
+    {% unless block.settings.show_original_price %}
+    .cdp-original-price {
+      display: none !important;
+    }
+    {% endunless %}
+    
+    {% unless block.settings.show_discount_badge %}
+    .cdp-discount-badge {
+      display: none !important;
+    }
+    {% endunless %}
+  </style>
+  
+  {{ 'customer-discount-prices.js' | asset_url | script_tag }}
+{% else %}
+  <script>
+    // Müşteri giriş yapmamış
+    window.customerDiscountData = {
+      isLoggedIn: false
+    };
+  </script>
+{% endif %}
+
