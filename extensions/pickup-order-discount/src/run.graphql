@@ -1,5 +1,20 @@
 query RunInput {
   cart {
+    lines {
+      id
+      quantity
+      cost {
+        amountPerQuantity {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
     cost {
       subtotalAmount {
         amount
@@ -15,12 +30,28 @@ query RunInput {
         handle
       }
     }
+    buyerIdentity {
+      customer {
+        id
+        hasTags(tags: ["disc-5", "disc-10", "disc-15", "disc-20", "disc-25", "disc-30"]) {
+          hasTag
+          tag
+        }
+      }
+    }
   }
   # Shop metafield - Teslimat indirimi ayarları
   shop {
     deliveryDiscountSettings: metafield(
       namespace: "delivery_discount"
       key: "settings"
+    ) {
+      value
+    }
+    # Müşteri tag indirim kuralları
+    customerTagDiscountRules: metafield(
+      namespace: "customer_discount"
+      key: "tag_rules"
     ) {
       value
     }

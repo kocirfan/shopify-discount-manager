@@ -3,10 +3,10 @@
 // Mağazadan teslim (pickup) seçeneği için sipariş bazlı indirim uygular.
 //
 // ÖNEMLİ KURALLAR:
-// 1. İNDİRİM İZOLASYONU: Bu indirim müşteri tag indirimi ile BAĞIMSIZ çalışır
+// 1. TAG İNDİRİMİ SONRASI: Pickup indirimi, tag indirimi uygulandıktan sonraki
+//    fiyat üzerinden hesaplanır (indirimli subtotal)
 // 2. PICKUP ZORUNLULUĞU: SADECE pickup seçeneği aktif olduğunda uygulanır
 // 3. CHECKOUT GÜNCELLİĞİ: Shipping'e geçildiğinde indirim DERHAL kaldırılır
-// 4. KOMBİNE ÇALIŞMA: Tag bazlı indirim ile birlikte uygulanabilir (combine kurallarına göre)
 // ============================================================
 
 import type { RunInput } from "../generated/api";
@@ -32,9 +32,15 @@ type FunctionResult = {
   discountApplicationStrategy: "FIRST" | "MAXIMUM";
 };
 
-export function run(input: RunInput): FunctionResult {
-  //console.error('=== PICKUP ORDER DISCOUNT START ===');
+interface CustomerTagRule {
+  id: string;
+  customerTag: string;
+  discountPercentage: number;
+  discountName: string;
+  enabled: boolean;
+}
 
+export function run(input: RunInput): FunctionResult {
   const cart = input.cart;
   const emptyReturn: FunctionResult = {
     discounts: [],
@@ -42,102 +48,86 @@ export function run(input: RunInput): FunctionResult {
   };
 
   // ============================================================
-  // TESLİMAT TİPİ TESPİTİ
-  // Cart attribute'a güveniyoruz - delivery-tracker UI extension
-  // tarafından güncelleniyor ve doğru çalışıyor.
+  // PICKUP KONTROLÜ
   // ============================================================
-
-  // Cart attribute'dan teslimat tipini kontrol et
   const selectedDeliveryType = cart.attribute?.value;
-  //console.error('🏷️ Cart attribute (selected_delivery_type):', selectedDeliveryType || '(boş)');
 
-  // Shopify deliveryGroups bilgisini de logla (debug için)
-  const deliveryGroups = cart.deliveryGroups || [];
-  if (deliveryGroups.length > 0) {
-    const selectedOption = deliveryGroups[0]?.selectedDeliveryOption;
-    if (selectedOption) {
-      // console.error('📦 Shopify DeliveryGroup:');
-      // console.error('   Title:', selectedOption.title || '(yok)');
-      // console.error('   Handle:', selectedOption.handle || '(yok)');
-    }
-  } else {
-    // console.error('📦 DeliveryGroups: (boş - normal, function bu veriyi almayabilir)');
-  }
-
-  // ============================================================
-  // KARAR MANTIĞI:
-  // - Cart attribute "pickup" ise -> indirim uygula
-  // - Cart attribute boş veya "shipping" ise -> indirim yok
-  // ============================================================
-
-  const shouldApplyPickupDiscount = selectedDeliveryType === "pickup";
-
-  if (!shouldApplyPickupDiscount) {
-    // console.error('⛔ PICKUP SEÇİLİ DEĞİL - İndirim UYGULANMAYACAK');
-    // console.error('   Mevcut değer:', selectedDeliveryType || '(boş)');
+  if (selectedDeliveryType !== "pickup") {
     return emptyReturn;
   }
 
-  // console.error('✅ Pickup seçili - indirim değerlendirilecek');
-
-  // Metafield'dan ayarları al
+  // Delivery settings al
   const settingsJson = input.shop?.deliveryDiscountSettings?.value;
-  if (!settingsJson) {
-    // console.error('❌ AYAR BULUNAMADI: Metafield boş');
-    return emptyReturn;
-  }
+  if (!settingsJson) return emptyReturn;
 
   let settings;
   try {
     settings = JSON.parse(settingsJson);
-    //console.error('📋 Ayarlar yüklendi:', settings.length, 'teslimat yöntemi');
-  } catch (e) {
-    // console.error('❌ JSON PARSE HATASI');
+  } catch {
     return emptyReturn;
   }
 
-  // ============================================================
-  // KURAL 4: İNDİRİM İZOLASYONU - PICKUP İNDİRİMİ
-  // Pickup indirimi, müşteri tag indirimi ile BAĞIMSIZ çalışır.
-  // Bu indirim SADECE pickup seçimi aktifken uygulanır.
-  // ============================================================
+  const pickupMethod = settings.find((m: any) => m.type === "pickup" && m.enabled);
+  if (!pickupMethod) return emptyReturn;
 
-  // Aktif pickup metodunu bul
-  const pickupMethod = settings.find(
-    (m: any) => m.type === "pickup" && m.enabled,
-  );
+  // ============================================================
+  // MÜŞTERİ TAG İNDİRİMİNİ HESAPLA
+  // Pickup indirimi, tag indirimi uygulandıktan sonraki fiyat üzerinden hesaplanmalı
+  // ============================================================
+  let tagDiscountPercent = 0;
 
-  if (!pickupMethod) {
-    //console.error('❌ AKTİF PICKUP METODU BULUNAMADI');
-    return emptyReturn;
+  const customer = cart.buyerIdentity?.customer;
+  if (customer?.id) {
+    const activeTags = (customer.hasTags || [])
+      .filter((t: any) => t.hasTag)
+      .map((t: any) => t.tag.toLowerCase());
+
+    const rulesJson = input.shop?.customerTagDiscountRules?.value;
+    if (rulesJson) {
+      try {
+        const rules: CustomerTagRule[] = JSON.parse(rulesJson);
+        for (const rule of rules) {
+          if (!rule.enabled) continue;
+          if (activeTags.includes(rule.customerTag.toLowerCase())) {
+            if (rule.discountPercentage > tagDiscountPercent) {
+              tagDiscountPercent = rule.discountPercentage;
+            }
+          }
+        }
+      } catch {
+        // Kural parse hatası - tag indirimi 0 kalır
+      }
+    }
   }
 
-  // console.error('✅ Pickup metodu bulundu:', pickupMethod.name);
-  // console.error('   İndirim değeri: %', pickupMethod.discountValue);
-
-  // Sepet ara toplamı üzerinden indirim hesapla
-  const subtotal = parseFloat(cart.cost.subtotalAmount.amount);
-  const discountPercent = pickupMethod.discountValue;
-  const discountAmount = (subtotal * (discountPercent / 100)).toFixed(2);
-
-  // console.error('💰 Ara toplam:', subtotal.toFixed(2));
-  // console.error('💰 Pickup indirimi: %', discountPercent, '=', discountAmount);
-
   // ============================================================
-  // KURAL 6: ÖNCELİK VE ÇAKIŞMA KURALLARI
-  // Pickup indirimi, tag bazlı indirim ile birlikte uygulanabilir.
-  // Her iki indirim de mevcutsa, combine kurallarına uygun çalışır.
+  // İNDİRİMLİ SUBTOTAL HESAPLA
+  // Önce tag indirimini uygula, sonra pickup indirimini hesapla
   // ============================================================
+  const originalSubtotal = parseFloat(cart.cost.subtotalAmount.amount);
+
+  // Tag indirimi uygulandıktan sonraki fiyat
+  const afterTagDiscount = originalSubtotal * (1 - tagDiscountPercent / 100);
+
+  // Pickup indirimi: indirimli fiyat üzerinden
+  const pickupDiscountPercent = pickupMethod.discountValue;
+  const pickupDiscountAmount = (afterTagDiscount * (pickupDiscountPercent / 100)).toFixed(2);
+
+  // console.error('📊 Pickup İndirim Hesabı:');
+  // console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
+  // console.error('   Tag indirimi: %' + tagDiscountPercent);
+  // console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
+  // console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
 
   return {
     discounts: [
       {
         value: {
           fixedAmount: {
-            amount: discountAmount,
+            amount: pickupDiscountAmount,
           },
         },
-        message: `%${discountPercent} Pickup Korting`,
+        message: `%${pickupDiscountPercent} Pickup Korting`,
         targets: [
           {
             orderSubtotal: {
