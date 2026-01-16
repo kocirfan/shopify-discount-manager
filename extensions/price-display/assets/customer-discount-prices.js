@@ -51,40 +51,37 @@
   }
 
   /**
-   * Fiyat metninden sayısal değer çıkar (Avrupa formatı: €204,00)
+   * Fiyat metninden sayısal değer çıkar (€204,00 -> 204.00)
    */
   function extractPrice(text) {
     if (!text) return null;
 
-    // Sadece fiyat kısmını al (€123,45 veya €1.234,56)
-    const priceMatch = text.match(/€\s*([\d.]+),(\d{2})/);
-    if (priceMatch) {
-      // Avrupa formatı: binlik ayırıcı nokta, ondalık virgül
-      const wholePart = priceMatch[1].replace(/\./g, '');
-      const decimalPart = priceMatch[2];
-      return parseFloat(`${wholePart}.${decimalPart}`);
+    // Sadece rakamları ve virgülü al (€204,00 -> "204,00")
+    const match = text.match(/(\d+),(\d{2})/);
+    if (match) {
+      return parseFloat(match[1] + '.' + match[2]);
     }
-
-    // US format: $1,234.56
-    const usPriceMatch = text.match(/[\$£]\s*([\d,]+)\.(\d{2})/);
-    if (usPriceMatch) {
-      const wholePart = usPriceMatch[1].replace(/,/g, '');
-      const decimalPart = usPriceMatch[2];
-      return parseFloat(`${wholePart}.${decimalPart}`);
-    }
-
     return null;
   }
 
   /**
-   * Fiyatı Avrupa formatında göster
+   * Fiyatı Euro formatında göster (183.60 -> €183,60)
    */
   function formatEuroPrice(value) {
-    return '€' + value.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const fixed = value.toFixed(2); // "183.60"
+    const parts = fixed.split('.'); // ["183", "60"]
+
+    // Binlik ayırıcı ekle (1234 -> 1.234)
+    let whole = parts[0];
+    if (whole.length > 3) {
+      whole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    return '€' + whole + ',' + parts[1];
   }
 
   /**
-   * Fiyat elementini güncelle - sadece .money elementlerini hedefle
+   * Fiyat elementini güncelle
    */
   function updatePriceElement(element, discountPercent) {
     if (element.hasAttribute(CONFIG.processedAttr)) return;
@@ -95,17 +92,14 @@
     if (!price || price <= 0) return;
 
     const discountedPrice = price * (1 - discountPercent / 100);
-    const discountedFormatted = formatEuroPrice(discountedPrice);
-    const originalFormatted = formatEuroPrice(price);
+    const newPrice = formatEuroPrice(discountedPrice);
+    const oldPrice = formatEuroPrice(price);
 
     // Element'i işaretle
     element.setAttribute(CONFIG.processedAttr, 'true');
 
-    // Basit HTML: yeni fiyat + eski fiyat üstü çizili
-    element.innerHTML = `
-      <span style="color: #e53935; font-weight: bold;">${discountedFormatted}</span>
-      <span style="text-decoration: line-through; opacity: 0.6; margin-left: 8px; font-size: 0.9em;">${originalFormatted}</span>
-    `;
+    // Sadece fiyatı değiştir: yeni fiyat (kırmızı) + eski fiyat (üstü çizili)
+    element.innerHTML = `<span style="color:#e53935;font-weight:bold">${newPrice}</span> <s style="opacity:0.6">${oldPrice}</s>`;
   }
 
   /**
