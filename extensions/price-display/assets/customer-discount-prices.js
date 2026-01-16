@@ -100,7 +100,7 @@
 
     // .big-price için özel stil
     if (element.classList.contains('big-price')) {
-      element.innerHTML = `<span style="color:#02437d;font-weight:bold;font-size:40px">${newPrice}</span> <s style="opacity:0.6;color:#000!important;padding-left:10px;font-size:20px">${oldPrice}</s>`;
+      element.innerHTML = `<span class="my-custom-big-price" style="color:#02437d;font-weight:bold;font-size:40px">${newPrice}</span> <s style="opacity:0.6;color:#000!important;padding-left:10px;font-size:20px">${oldPrice}</s>`;
     } else {
       element.innerHTML = `<span style="color:#02437d;font-weight:bold">${newPrice}</span> <s style="opacity:0.6;color:#000!important;padding-left:10px">${oldPrice}</s>`;
     }
