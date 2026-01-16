@@ -113,11 +113,11 @@ export function run(input: RunInput): FunctionResult {
   const pickupDiscountPercent = pickupMethod.discountValue;
   const pickupDiscountAmount = (afterTagDiscount * (pickupDiscountPercent / 100)).toFixed(2);
 
-  // console.error('📊 Pickup İndirim Hesabı:');
-  // console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
-  // console.error('   Tag indirimi: %' + tagDiscountPercent);
-  // console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
-  // console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
+  console.error('📊 Pickup İndirim Hesabı:');
+  console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
+  console.error('   Tag indirimi: %' + tagDiscountPercent);
+  console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
+  console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
 
   return {
     discounts: [
