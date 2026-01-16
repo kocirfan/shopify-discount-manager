@@ -121,8 +121,16 @@
 
     console.log('[CDP] Fiyatlar güncelleniyor...', discount.discountPercentage + '%');
 
-    // Sadece .money class'ına sahip elementleri bul
-    const priceElements = document.querySelectorAll('.money:not([data-cdp-processed])');
+    // Fiyat elementlerini bul - theme'e özel selector'lar
+    const selectors = [
+      '.price-item--regular',
+      '.price-item--sale',
+      '.big-price',
+      '.price-wrapper',
+      '.money',
+    ].map(s => `${s}:not([data-cdp-processed])`).join(', ');
+
+    const priceElements = document.querySelectorAll(selectors);
 
     priceElements.forEach(el => updatePriceElement(el, discount.discountPercentage));
 
