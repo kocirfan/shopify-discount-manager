@@ -25,11 +25,18 @@ query Input {
         id
         email
         hasTags(tags: [
-          "disc-5", "disc-10", "disc-15", "disc-20", "disc-25", "disc-30",
-          "disc-35", "disc-40", "disc-45", "disc-50",
+          "disc-5", "disc-6", "disc-7", "disc-8", "disc-9", "disc-10", "disc-10.7",
+          "disc-11", "disc-12", "disc-13", "disc-14", "disc-15", "disc-16", "disc-17",
+          "disc-18", "disc-19", "disc-20", "disc-22", "disc-25", "disc-30", "disc-35", "disc-40", "disc-50",
+          "korting-1", "korting-2", "korting-3", "korting-4", "korting-5", "korting-6", "korting-7",
+          "korting-8", "korting-9", "korting-10", "korting-11", "korting-12", "korting-13", "korting-14",
+          "korting-15", "korting-16", "korting-17", "korting-18", "korting-19", "korting-20", "korting-21",
+          "korting-22", "korting-23", "korting-24", "korting-25", "korting-32",
+          "korting-20.1", "korting-23.3", "korting-24.1", "korting-24.9", "korting-26.5",
+          "korting-28.1", "korting-28.9", "korting-29.7", "korting-30.5", "korting-31.3",
+          "korting-32.1", "korting-32.9", "korting-34.5", "korting-36.1",
           "vip", "wholesale", "premium", "gold", "silver", "bronze",
-          "partner", "employee", "reseller", "b2b",
-          "loyalty-1", "loyalty-2", "loyalty-3", "loyalty-4", "loyalty-5"
+          "partner", "employee", "reseller", "b2b"
         ]) {
           hasTag
           tag
