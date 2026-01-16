@@ -37,8 +37,8 @@ query Input {
       value
     }
     customerTagDiscountRules: metafield(
-      namespace: "customer_discount"
-      key: "tag_rules"
+      namespace: "customer_tag_discount"
+      key: "rules"
     ) {
       value
     }
