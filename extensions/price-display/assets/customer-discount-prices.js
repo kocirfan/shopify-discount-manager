@@ -91,7 +91,9 @@
 
     if (!price || price <= 0) return;
 
-    const discountedPrice = price * (1 - discountPercent / 100);
+    // İndirim tutarını hesapla ve AŞAĞI yuvarla (Shopify ile tutarlı)
+    const discountAmount = Math.floor(price * discountPercent) / 100;
+    const discountedPrice = price - discountAmount;
     const newPrice = formatEuroPrice(discountedPrice);
     const oldPrice = formatEuroPrice(price);
 
