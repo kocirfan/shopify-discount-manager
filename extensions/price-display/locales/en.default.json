@@ -1,0 +1,21 @@
+{
+  "name": "Customer Discount Price Display",
+  "settings": {
+    "show_original_price": {
+      "label": "Show original price with strikethrough"
+    },
+    "show_discount_badge": {
+      "label": "Show discount percentage badge"
+    },
+    "show_discount_banner": {
+      "label": "Show discount banner"
+    },
+    "badge_color": {
+      "label": "Badge color"
+    },
+    "discounted_price_color": {
+      "label": "Discounted price color"
+    }
+  }
+}
+

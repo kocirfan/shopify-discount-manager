@@ -36,7 +36,7 @@
     {% endunless %}
   </style>
   
-  {{ 'customer-discount-prices.js' | asset_url | script_tag }}
+  <script src="{{ 'customer-discount-prices.js' | asset_url }}" defer></script>
 {% else %}
   <script>
     // Müşteri giriş yapmamış

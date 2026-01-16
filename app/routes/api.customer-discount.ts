@@ -17,39 +17,39 @@ export async function loader({ request }: LoaderFunctionArgs) {
     "Cache-Control": "no-cache, no-store, must-revalidate",
   };
 
+  // URL'den parametreleri al
+  const url = new URL(request.url);
+  const customerId = url.searchParams.get("logged_in_customer_id");
+  const shop = url.searchParams.get("shop");
+
+  console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
+
+  if (!shop) {
+    return new Response(
+      JSON.stringify({
+        discountPercentage: 0,
+        message: "Shop parameter missing"
+      }),
+      { headers }
+    );
+  }
+
+  if (!customerId) {
+    return new Response(
+      JSON.stringify({
+        discountPercentage: 0,
+        discountName: null,
+        customerTag: null,
+        message: "Müşteri giriş yapmamış"
+      }),
+      { headers }
+    );
+  }
+
   try {
-    // URL'den parametreleri al
-    const url = new URL(request.url);
-    const customerId = url.searchParams.get("logged_in_customer_id");
-    const shop = url.searchParams.get("shop");
-
-    console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
-
-    if (!shop) {
-      return new Response(
-        JSON.stringify({
-          discountPercentage: 0,
-          error: "Shop parameter missing"
-        }),
-        { headers }
-      );
-    }
-
     // Unauthenticated admin API (app proxy için)
     const { admin } = await unauthenticated.admin(shop);
 
-    if (!customerId) {
-      return new Response(
-        JSON.stringify({ 
-          discountPercentage: 0, 
-          discountName: null,
-          customerTag: null,
-          message: "Müşteri giriş yapmamış" 
-        }),
-        { headers }
-      );
-    }
-    
     // Müşteri bilgilerini ve tag'lerini al
     const customerResponse = await admin.graphql(
       `#graphql
