@@ -77,25 +77,35 @@ export function run(input: RunInput): FunctionResult {
   let tagDiscountPercent = 0;
 
   const customer = cart.buyerIdentity?.customer;
+  console.error('🔍 Customer:', customer?.id || 'YOK');
+  console.error('🔍 HasTags:', JSON.stringify(customer?.hasTags || []));
+
   if (customer?.id) {
     const activeTags = (customer.hasTags || [])
       .filter((t: any) => t.hasTag)
       .map((t: any) => t.tag.toLowerCase());
 
+    console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
+
     const rulesJson = input.shop?.customerTagDiscountRules?.value;
+    console.error('🔍 Rules JSON:', rulesJson ? 'VAR' : 'YOK');
+
     if (rulesJson) {
       try {
         const rules: CustomerTagRule[] = JSON.parse(rulesJson);
+        console.error('🔍 Rules count:', rules.length);
         for (const rule of rules) {
           if (!rule.enabled) continue;
+          console.error('🔍 Checking rule:', rule.customerTag, '-> %' + rule.discountPercentage);
           if (activeTags.includes(rule.customerTag.toLowerCase())) {
             if (rule.discountPercentage > tagDiscountPercent) {
               tagDiscountPercent = rule.discountPercentage;
+              console.error('✅ Matched! Tag discount:', tagDiscountPercent);
             }
           }
         }
-      } catch {
-        // Kural parse hatası - tag indirimi 0 kalır
+      } catch (e) {
+        console.error('❌ JSON parse error');
       }
     }
   }
