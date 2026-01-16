@@ -1,29 +1,43 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { unauthenticated } from "../shopify.server";
 
 /**
  * App Proxy Endpoint - Müşterinin indirim oranını döndürür
- * 
- * URL: /apps/discount-manager/customer-discount
- * Query params: customer_id (optional - Shopify will provide logged-in customer)
- * 
+ *
+ * URL: /apps/discount-manager/api/customer-discount
+ * Query params: logged_in_customer_id (Shopify app proxy tarafından sağlanır)
+ *
  * Returns: { discountPercentage: number, discountName: string, customerTag: string }
  */
 export async function loader({ request }: LoaderFunctionArgs) {
+  // CORS headers
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+  };
+
   try {
-    const { admin, session } = await authenticate.public.appProxy(request);
-    
-    // URL'den customer ID'yi al (Shopify app proxy logged_in_customer_id sağlar)
+    // URL'den parametreleri al
     const url = new URL(request.url);
     const customerId = url.searchParams.get("logged_in_customer_id");
-    
-    // CORS headers
-    const headers = {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    };
-    
+    const shop = url.searchParams.get("shop");
+
+    console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
+
+    if (!shop) {
+      return new Response(
+        JSON.stringify({
+          discountPercentage: 0,
+          error: "Shop parameter missing"
+        }),
+        { headers }
+      );
+    }
+
+    // Unauthenticated admin API (app proxy için)
+    const { admin } = await unauthenticated.admin(shop);
+
     if (!customerId) {
       return new Response(
         JSON.stringify({ 
