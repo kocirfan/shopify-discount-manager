@@ -1,6 +1,6 @@
 export function run(input: any) {
-  console.error('=== ORDER DISCOUNT START ===');
-  console.error('Input:', JSON.stringify(input, null, 2));
+  //console.error('=== ORDER DISCOUNT START ===');
+  //console.error('Input:', JSON.stringify(input, null, 2));
 
   // Default return
   const emptyReturn = {
@@ -9,66 +9,66 @@ export function run(input: any) {
   };
 
   if (!input.cart?.lines?.length) {
-    console.error('❌ No cart lines');
+    //console.error('❌ No cart lines');
     return emptyReturn;
   }
 
   const settingsJson = input.shop?.deliveryDiscountSettings?.value;
   if (!settingsJson) {
-    console.error('❌ No settings in metafield');
+    //console.error('❌ No settings in metafield');
     return emptyReturn;
   }
 
   let settings;
   try {
     settings = JSON.parse(settingsJson);
-    console.error('✅ Settings loaded:', settings.length, 'methods');
+    //console.error('✅ Settings loaded:', settings.length, 'methods');
   } catch (e) {
-    console.error('❌ Parse error');
+    //console.error('❌ Parse error');
     return emptyReturn;
   }
 
   const activeMethods = settings.filter((m: any) => m.enabled);
   if (!activeMethods.length) {
-    console.error('❌ No active methods');
+    //console.error('❌ No active methods');
     return emptyReturn;
   }
 
-  console.error('✅ Active methods:', activeMethods.map((m: any) => m.name));
+  //console.error('✅ Active methods:', activeMethods.map((m: any) => m.name));
 
   // Önce cart attribute'dan delivery type'ı kontrol et
   const selectedDeliveryType = input.cart?.attribute?.value;
   const pickupDate = input.cart?.pickupDate?.value;
-  console.error('🏷️ Cart attribute delivery type:', selectedDeliveryType);
-  console.error('📅 Pickup date:', pickupDate || 'Not set');
+  //console.error('🏷️ Cart attribute delivery type:', selectedDeliveryType);
+  //console.error('📅 Pickup date:', pickupDate || 'Not set');
 
   // Mevcut discount'ları kontrol et
   const existingDiscounts = input.cart?.discountAllocations || [];
   const discountCodes = input.cart?.discountCodes || [];
-  console.error('💰 Existing discount allocations:', existingDiscounts.length);
-  console.error('🎫 Discount codes:', discountCodes.map((d: any) => d.code).join(', ') || 'None');
+  //console.error('💰 Existing discount allocations:', existingDiscounts.length);
+  //console.error('🎫 Discount codes:', discountCodes.map((d: any) => d.code).join(', ') || 'None');
 
   let matchedMethod = null;
 
   if (selectedDeliveryType) {
     // Cart attribute varsa, bunu kullan
-    console.error('✅ Using cart attribute for delivery detection');
+    //console.error('✅ Using cart attribute for delivery detection');
 
     for (const method of activeMethods) {
       if (method.type === selectedDeliveryType) {
         matchedMethod = method;
-        console.error('✅ MATCHED via cart attribute:', method.name);
+        //console.error('✅ MATCHED via cart attribute:', method.name);
         break;
       }
     }
   } else {
     // Cart attribute yoksa, deliveryGroups'u dene (eski yöntem)
-    console.error('⚠️ No cart attribute, trying deliveryGroups');
+    //console.error('⚠️ No cart attribute, trying deliveryGroups');
     const deliveryGroups = input.cart?.deliveryGroups || [];
-    console.error('📦 Delivery groups count:', deliveryGroups.length);
+    //console.error('📦 Delivery groups count:', deliveryGroups.length);
 
     if (deliveryGroups.length === 0) {
-      console.error('⚠️ No delivery groups - no discount applied');
+      //console.error('⚠️ No delivery groups - no discount applied');
       return emptyReturn;
     }
 
@@ -80,22 +80,22 @@ export function run(input: any) {
       const fullOption = deliveryOptions.find((opt: any) => opt.handle === selected.handle);
 
       if (!fullOption) {
-        console.error('⚠️ Could not find full delivery option for handle:', selected.handle);
+        //console.error('⚠️ Could not find full delivery option for handle:', selected.handle);
         continue;
       }
 
       const title = fullOption.title?.toLowerCase() || '';
-      console.error('🔍 Selected delivery title:', title);
+      //console.error('🔍 Selected delivery title:', title);
 
       // Title'dan type'ı çıkar (pickup kelimesi varsa pickup, yoksa shipping)
       const isPickup = title.includes('pickup') || title.includes('afhalen') || title.includes('abholung') || title.includes('terheijdenseweg');
       const detectedType = isPickup ? 'pickup' : 'shipping';
-      console.error('🔍 Detected type from title:', detectedType);
+      //console.error('🔍 Detected type from title:', detectedType);
 
       for (const method of activeMethods) {
         if (method.type === 'pickup' && detectedType === 'pickup') {
           matchedMethod = method;
-          console.error('✅ PICKUP matched');
+          //console.error('✅ PICKUP matched');
           break;
         }
 
@@ -103,7 +103,7 @@ export function run(input: any) {
           const methodName = method.name.toLowerCase().split('(')[0].trim();
           if (title.includes(methodName) || methodName.includes(title)) {
             matchedMethod = method;
-            console.error('✅ SHIPPING matched:', method.name);
+            //console.error('✅ SHIPPING matched:', method.name);
             break;
           }
         }
@@ -114,18 +114,18 @@ export function run(input: any) {
   }
 
   if (!matchedMethod) {
-    console.error('❌ No matched method');
+    //console.error('❌ No matched method');
     return emptyReturn;
   }
 
-  console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
+  //console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
   // Apply discount to each cart line (Product Discount)
   // This applies customer segment discounts for ALL delivery methods
   // Cart Transform will add additional 2% discount on top for pickup
   // This will work on top of Sami Wholesale's order discount
   const discounts = input.cart.lines.map((line: any) => {
-    console.error(`📦 Applying ${matchedMethod.discountValue}% to line ${line.id}`);
+    //console.error(`📦 Applying ${matchedMethod.discountValue}% to line ${line.id}`);
 
     return {
       message: `${matchedMethod.discountValue}% korting - ${matchedMethod.name}`,
@@ -149,7 +149,7 @@ export function run(input: any) {
     };
   });
 
-  console.error('✅ Returning', discounts.length, 'product discounts');
+  //console.error('✅ Returning', discounts.length, 'product discounts');
 
   return {
     discountApplicationStrategy: "FIRST",

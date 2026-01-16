@@ -70,9 +70,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (savedBaseDiscount) {
       try {
         baseDiscountPercentage = parseFloat(savedBaseDiscount);
-        console.log("Loaded base discount:", baseDiscountPercentage);
+        ////console.log("Loaded base discount:", baseDiscountPercentage);
       } catch (error) {
-        console.error("Error parsing base discount:", error);
+        ////console.error("Error parsing base discount:", error);
       }
     }
 
@@ -85,9 +85,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         savedMethods.forEach(method => {
           savedMethodsMap.set(method.id, method);
         });
-        console.log("Loaded saved settings:", savedMethods);
+        ////console.log("Loaded saved settings:", savedMethods);
       } catch (error) {
-        console.error("Error parsing saved settings:", error);
+        //console.error("Error parsing saved settings:", error);
       }
     }
 
@@ -213,7 +213,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       });
     }
   } catch (error) {
-    console.error("Error fetching delivery methods:", error);
+    //console.error("Error fetching delivery methods:", error);
   }
 
   // Fallback eğer hiç metod yoksa
@@ -247,9 +247,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const methods = JSON.parse(formData.get("methods") as string);
   const baseDiscount = formData.get("baseDiscount") as string;
 
-  console.log("=== SAVING SETTINGS ===");
-  console.log("Methods to save:", JSON.stringify(methods, null, 2));
-  console.log("Base discount to save:", baseDiscount);
+  //console.log("=== SAVING SETTINGS ===");
+  //console.log("Methods to save:", JSON.stringify(methods, null, 2));
+  //console.log("Base discount to save:", baseDiscount);
 
   try {
     // Önce shop ID'sini alalım
@@ -265,7 +265,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const shopData = await shopResponse.json();
     const shopId = shopData.data.shop.id;
-    console.log("Shop ID:", shopId);
+    //console.log("Shop ID:", shopId);
 
     // Metafield'a kaydet (hem delivery methods hem base discount)
     const response = await admin.graphql(
@@ -307,11 +307,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     const result = await response.json();
-    console.log("Metafield save result:", JSON.stringify(result, null, 2));
+    //console.log("Metafield save result:", JSON.stringify(result, null, 2));
 
     if (result.data?.metafieldsSet?.userErrors?.length > 0) {
       const error = result.data.metafieldsSet.userErrors[0];
-      console.error("Metafield error:", error);
+      //console.error("Metafield error:", error);
       return {
         success: false,
         message: "Hata: " + error.message
@@ -319,14 +319,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (result.data?.metafieldsSet?.metafields?.length > 0) {
-      console.log("✅ Metafield saved successfully!");
+      //console.log("✅ Metafield saved successfully!");
       return { success: true, message: "Ayarlar başarıyla kaydedildi!" };
     }
 
-    console.error("❌ No metafield created");
+    //console.error("❌ No metafield created");
     return { success: false, message: "Metafield oluşturulamadı!" };
   } catch (error: any) {
-    console.error("Error saving settings:", error);
+    //console.error("Error saving settings:", error);
     return { success: false, message: "Kaydetme hatası: " + error.message };
   }
 };
@@ -367,14 +367,14 @@ export default function Index() {
         method: 'POST',
       });
       const result = await response.json();
-      console.log('Cart Transform activation result:', result);
+      //console.log('Cart Transform activation result:', result);
       if (result.success) {
         alert('✅ Cart Transform başarıyla aktifleştirildi! Artık TestKocirfan ile birlikte çalışacak.');
       } else {
         alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
       }
     } catch (error) {
-      console.error('Error:', error);
+      //console.error('Error:', error);
       alert('❌ Aktivasyon hatası');
     }
   };
@@ -385,14 +385,14 @@ export default function Index() {
         method: 'POST',
       });
       const result = await response.json();
-      console.log('Order Discount activation result:', result);
+      //console.log('Order Discount activation result:', result);
       if (result.success) {
         alert('✅ Order Discount başarıyla aktifleştirildi! Pickup seçildiğinde otomatik sepet indirimi uygulanacak.');
       } else {
         alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
       }
     } catch (error) {
-      console.error('Error:', error);
+      //console.error('Error:', error);
       alert('❌ Aktivasyon hatası');
     }
   };

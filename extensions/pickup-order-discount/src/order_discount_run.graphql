@@ -15,7 +15,7 @@ query Input {
         }
       }
     }
-    attribute(key: "_selected_delivery_type") {
+    attribute(key: "selected_delivery_type") {
       value
     }
     buyerIdentity {

@@ -90,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const createResult: any = await createResponse.json();
 
       if (createResult.data?.discountCodeBasicCreate?.userErrors?.length > 0) {
-        console.error("Discount creation errors:", createResult.data.discountCodeBasicCreate.userErrors);
+        //console.error("Discount creation errors:", createResult.data.discountCodeBasicCreate.userErrors);
       }
     }
 
@@ -137,7 +137,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
   } catch (error: any) {
-    console.error("Error applying pickup discount:", error);
+    //console.error("Error applying pickup discount:", error);
     return Response.json({
       success: false,
       error: error?.message || String(error)

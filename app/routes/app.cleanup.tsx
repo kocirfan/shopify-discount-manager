@@ -76,12 +76,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
 
       const data = await response.json();
-      console.log("Automatic Discounts:", JSON.stringify(data, null, 2));
+      //console.log("Automatic Discounts:", JSON.stringify(data, null, 2));
 
       const discounts = data.data?.automaticDiscountNodes?.edges || [];
       return {
         success: true,
-        message: `${discounts.length} adet automatic discount bulundu. Console'a yazdırıldı.`,
+        message: `${discounts.length} adet automatic discount bulundu.`,
         discounts: discounts
       };
     }
@@ -140,7 +140,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return { success: false, message: "Bilinmeyen işlem" };
   } catch (error: any) {
-    console.error("Cleanup error:", error);
+    //console.error("Cleanup error:", error);
     return { success: false, message: error.message };
   }
 };

@@ -26,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return { hasActiveTransform, transforms: result.data?.cartTransforms?.nodes };
   } catch (error) {
-    console.error("Error checking cart transforms:", error);
+    //console.error("Error checking cart transforms:", error);
     return { hasActiveTransform: false, transforms: [] };
   }
 };
@@ -78,14 +78,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const deleteResult: any = await deleteResponse.json();
       if (deleteResult.data?.cartTransformDelete?.userErrors?.length > 0) {
-        console.error("Delete errors:", deleteResult.data.cartTransformDelete.userErrors);
+        //console.error("Delete errors:", deleteResult.data.cartTransformDelete.userErrors);
       }
     }
 
-    console.log("✅ Cart Transform deactivated successfully!");
+    //console.log("✅ Cart Transform deactivated successfully!");
     return { success: true, message: "Cart Transform deactivated", deactivated: true };
   } catch (error: any) {
-    console.error("Error deactivating cart transform:", error);
+    //console.error("Error deactivating cart transform:", error);
     return {
       success: false,
       error: error?.message || String(error),

@@ -21,7 +21,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     const functionsData = await functionsResponse.json();
-    console.log("Available functions:", JSON.stringify(functionsData, null, 2));
+    //console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
     // Find ORDER discount function specifically (not product discount)
     const discountFunction = functionsData.data?.shopifyFunctions?.nodes?.find(
@@ -29,12 +29,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     if (!discountFunction) {
-      console.error("❌ No order discount function found!");
-      console.error("Available functions:", functionsData.data?.shopifyFunctions?.nodes?.map((f: any) => ({ title: f.title, type: f.apiType })));
+      //console.error("❌ No order discount function found!");
+      //console.error("Available functions:", functionsData.data?.shopifyFunctions?.nodes?.map((f: any) => ({ title: f.title, type: f.apiType })));
       return { success: false, error: "Order discount function not found. Please deploy first." };
     }
 
-    console.log("Using ORDER discount function:", discountFunction);
+    //console.log("Using ORDER discount function:", discountFunction);
 
     const response = await admin.graphql(
       `#graphql
@@ -73,23 +73,23 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     const result = await response.json();
-    console.log("Discount created:", JSON.stringify(result, null, 2));
+    //console.log("Discount created:", JSON.stringify(result, null, 2));
 
     const errors = result.data?.discountAutomaticAppCreate?.userErrors;
     if (errors && errors.length > 0) {
-      console.error("❌ USER ERRORS:", errors);
+      //console.error("❌ USER ERRORS:", errors);
       return { success: false, errors };
     }
 
     if (result.data?.discountAutomaticAppCreate?.automaticAppDiscount) {
-      console.log("✅ Discount created successfully!");
+      //console.log("✅ Discount created successfully!");
       return { success: true, data: result };
     }
 
-    console.error("❌ No discount created");
+    //console.error("❌ No discount created");
     return { success: false, error: "No discount created" };
   } catch (error) {
-    console.error("Error creating discount:", error);
+    //console.error("Error creating discount:", error);
     return { success: false, error: String(error) };
   }
 };

@@ -14,7 +14,7 @@ export default extension(
     // Bu extension, checkout'ta teslimat yöntemi değişikliklerini izler
     // ve cart attribute'unu ANLIK olarak günceller.
     // ============================================================
-    console.log('[DELIVERY TRACKER] ✅ Extension başlatıldı');
+    //console.log('[DELIVERY TRACKER] ✅ Extension başlatıldı');
 
     let lastDeliveryType = null;
     let selectedDate = null;
@@ -34,9 +34,9 @@ export default extension(
       key: 'selected_delivery_type',
       value: ''
     }).then(() => {
-      console.log('[DELIVERY TRACKER] 🧹 Başlangıç temizliği: cart attribute sıfırlandı');
+      //console.log('[DELIVERY TRACKER] 🧹 Başlangıç temizliği: cart attribute sıfırlandı');
     }).catch(err => {
-      console.error('[DELIVERY TRACKER] ❌ Temizlik hatası:', err);
+      //console.error('[DELIVERY TRACKER] ❌ Temizlik hatası:', err);
     });
 
     // ============================================================
@@ -44,11 +44,11 @@ export default extension(
     // Delivery groups değiştiğinde ANLIK olarak attribute güncelle.
     // ============================================================
     deliveryGroups.subscribe(async (groups) => {
-      console.log('[DELIVERY TRACKER] 📦 Teslimat grupları değişti:', groups?.length || 0);
+      //console.log('[DELIVERY TRACKER] 📦 Teslimat grupları değişti:', groups?.length || 0);
 
       // Concurrent update koruması
       if (isUpdating) {
-        console.log('[DELIVERY TRACKER] ⏳ Güncelleme devam ediyor, bekleniyor...');
+        //console.log('[DELIVERY TRACKER] ⏳ Güncelleme devam ediyor, bekleniyor...');
         return;
       }
 
@@ -57,10 +57,10 @@ export default extension(
       // Bu, pickup indirimi için kritik - seçim yoksa indirim yok.
       // ============================================================
       if (!groups || groups.length === 0) {
-        console.log('[DELIVERY TRACKER] ⚠️ Teslimat grubu yok');
+        //console.log('[DELIVERY TRACKER] ⚠️ Teslimat grubu yok');
 
         if (lastDeliveryType !== null) {
-          console.log('[DELIVERY TRACKER] 🧹 Cart attribute temizleniyor');
+          //console.log('[DELIVERY TRACKER] 🧹 Cart attribute temizleniyor');
           isUpdating = true;
           try {
             await applyAttributeChange({
@@ -69,9 +69,9 @@ export default extension(
               value: ''
             });
             lastDeliveryType = null;
-            console.log('[DELIVERY TRACKER] ✅ Attribute temizlendi - pickup indirimi KALDIRILDI');
+            //console.log('[DELIVERY TRACKER] ✅ Attribute temizlendi - pickup indirimi KALDIRILDI');
           } catch (error) {
-            console.error('[DELIVERY TRACKER] ❌ Temizleme hatası:', error);
+            //console.error('[DELIVERY TRACKER] ❌ Temizleme hatası:', error);
           } finally {
             isUpdating = false;
           }
@@ -84,22 +84,22 @@ export default extension(
       const selected = firstGroup?.selectedDeliveryOption;
 
       if (!selected) {
-        console.log('[DELIVERY TRACKER] ⚠️ Seçili teslimat seçeneği yok');
+        //console.log('[DELIVERY TRACKER] ⚠️ Seçili teslimat seçeneği yok');
         return;
       }
 
       // deliveryOptions içinden handle'a göre tam bilgiyi bul
       const deliveryOptions = firstGroup?.deliveryOptions || [];
-      console.log('[DELIVERY TRACKER] 🔍 Mevcut teslimat seçenekleri:', deliveryOptions.length);
+      //console.log('[DELIVERY TRACKER] 🔍 Mevcut teslimat seçenekleri:', deliveryOptions.length);
 
       const fullOption = deliveryOptions.find(opt => opt.handle === selected.handle);
 
       if (!fullOption) {
-        console.log('[DELIVERY TRACKER] ⚠️ Handle için seçenek bulunamadı:', selected.handle);
+        //console.log('[DELIVERY TRACKER] ⚠️ Handle için seçenek bulunamadı:', selected.handle);
         return;
       }
 
-      console.log('[DELIVERY TRACKER] 🔍 Seçilen seçenek:', JSON.stringify(fullOption, null, 2));
+      //console.log('[DELIVERY TRACKER] 🔍 Seçilen seçenek:', JSON.stringify(fullOption, null, 2));
 
       // Title'dan delivery type'ı çıkar
       const title = fullOption.title?.toLowerCase() || '';
@@ -154,11 +154,11 @@ export default extension(
         }
       }
 
-      console.log('[DELIVERY TRACKER] 🔍 Tespit edilen tip:', deliveryType);
-      console.log('   Title:', title);
-      console.log('   Handle:', handle);
-      console.log('   Type field:', type || '(yok)');
-      console.log('   CarrierServiceHandle:', carrierServiceHandle || '(yok)');
+      //console.log('[DELIVERY TRACKER] 🔍 Tespit edilen tip:', deliveryType);
+      //console.log('   Title:', title);
+      //console.log('   Handle:', handle);
+      //console.log('   Type field:', type || '(yok)');
+      //console.log('   CarrierServiceHandle:', carrierServiceHandle || '(yok)');
 
       // ============================================================
       // KURAL 5: CHECKOUT GÜNCELLİĞİ - ANLIK ATTRIBUTE GÜNCELLEMESİ
@@ -166,9 +166,9 @@ export default extension(
       // Bu, Shopify Functions'ın doğru indirim hesaplaması için kritik.
       // ============================================================
       if (deliveryType && deliveryType !== lastDeliveryType) {
-        console.log('[DELIVERY TRACKER] 🔄 TESLİMAT DEĞİŞİKLİĞİ TESPİT EDİLDİ');
-        console.log('   Önceki:', lastDeliveryType || 'yok');
-        console.log('   Yeni:', deliveryType);
+        //console.log('[DELIVERY TRACKER] 🔄 TESLİMAT DEĞİŞİKLİĞİ TESPİT EDİLDİ');
+        //console.log('   Önceki:', lastDeliveryType || 'yok');
+        //console.log('   Yeni:', deliveryType);
 
         isUpdating = true;
         try {
@@ -188,19 +188,19 @@ export default extension(
           // ANLIK olarak kaldırılır (attribute güncellenmesiyle otomatik).
           // ============================================================
           if (previousType === 'pickup' && deliveryType === 'shipping') {
-            console.log('[DELIVERY TRACKER] ⚠️ PICKUP -> SHIPPING GEÇİŞİ');
-            console.log('   Pickup indirimi KALDIRILDI');
+            //console.log('[DELIVERY TRACKER] ⚠️ PICKUP -> SHIPPING GEÇİŞİ');
+            //console.log('   Pickup indirimi KALDIRILDI');
           } else if (deliveryType === 'pickup') {
-            console.log('[DELIVERY TRACKER] ✅ PICKUP SEÇİLDİ');
-            console.log('   Pickup indirimi UYGULANACAK');
+            //console.log('[DELIVERY TRACKER] ✅ PICKUP SEÇİLDİ');
+            //console.log('   Pickup indirimi UYGULANACAK');
           } else {
-            console.log('[DELIVERY TRACKER] ✅ SHIPPING SEÇİLDİ');
-            console.log('   Sadece müşteri tag indirimi geçerli (varsa)');
+            //console.log('[DELIVERY TRACKER] ✅ SHIPPING SEÇİLDİ');
+            //console.log('   Sadece müşteri tag indirimi geçerli (varsa)');
           }
 
-          console.log('[DELIVERY TRACKER] ✅ Cart attribute güncellendi:', deliveryType);
+          //console.log('[DELIVERY TRACKER] ✅ Cart attribute güncellendi:', deliveryType);
         } catch (error) {
-          console.error('[DELIVERY TRACKER] ❌ Attribute güncelleme hatası:', error);
+          //console.error('[DELIVERY TRACKER] ❌ Attribute güncelleme hatası:', error);
         } finally {
           isUpdating = false;
         }
@@ -268,7 +268,7 @@ export default extension(
           disableDatesBefore: minDate,
           onChange: async (date) => {
             selectedDate = date;
-            console.log('[DELIVERY TRACKER] 📅 Tarih seçildi:', date);
+            //console.log('[DELIVERY TRACKER] 📅 Tarih seçildi:', date);
 
             // Tarihi cart attribute'a kaydet
             try {
@@ -277,9 +277,9 @@ export default extension(
                 key: 'pickup_delivery_date',
                 value: date
               });
-              console.log('[DELIVERY TRACKER] ✅ Teslim alma tarihi kaydedildi');
+              //console.log('[DELIVERY TRACKER] ✅ Teslim alma tarihi kaydedildi');
             } catch (error) {
-              console.error('[DELIVERY TRACKER] ❌ Tarih kaydetme hatası:', error);
+              //console.error('[DELIVERY TRACKER] ❌ Tarih kaydetme hatası:', error);
             }
           }
         });
@@ -291,7 +291,7 @@ export default extension(
         container.appendChild(dateDescription);
         container.appendChild(datePicker);
 
-        console.log('[DELIVERY TRACKER] 🎉 Pickup UI gösterildi (banner + tarih seçici)');
+        //console.log('[DELIVERY TRACKER] 🎉 Pickup UI gösterildi (banner + tarih seçici)');
       } else {
         // ============================================================
         // SHIPPING SEÇİLDİĞİNDE (veya pickup değilse)
@@ -305,11 +305,11 @@ export default extension(
             key: 'pickup_delivery_date',
             value: ''
           }).catch(err => {
-            console.error('[DELIVERY TRACKER] ❌ Tarih temizleme hatası:', err);
+            //console.error('[DELIVERY TRACKER] ❌ Tarih temizleme hatası:', err);
           });
-          console.log('[DELIVERY TRACKER] 🧹 Teslim alma tarihi temizlendi');
+          //console.log('[DELIVERY TRACKER] 🧹 Teslim alma tarihi temizlendi');
         }
-        console.log('[DELIVERY TRACKER] 📦 Shipping modu - pickup UI gizlendi');
+        //console.log('[DELIVERY TRACKER] 📦 Shipping modu - pickup UI gizlendi');
       }
     }
 

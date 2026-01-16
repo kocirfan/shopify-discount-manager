@@ -4,7 +4,7 @@ import { authenticate } from "../shopify.server";
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { topic, shop, payload } = await authenticate.webhook(request);
 
-  console.log(`Received ${topic} webhook for ${shop}`);
+  //console.log(`Received ${topic} webhook for ${shop}`);
 
   // GDPR: Customer data erasure
   // Customer requests their data to be deleted (48 hours after request)
@@ -14,7 +14,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const customerId = payload.customer?.id;
     const shopDomain = payload.shop_domain;
 
-    console.log(`Customer redaction request for customer ${customerId} from shop ${shopDomain}`);
+    //console.log(`Customer redaction request for customer ${customerId} from shop ${shopDomain}`);
 
     // TODO: Delete all customer data from your database
 

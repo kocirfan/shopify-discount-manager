@@ -74,7 +74,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       try {
         rules = JSON.parse(savedRules);
       } catch (error) {
-        console.error("Error parsing saved rules:", error);
+        //console.error("Error parsing saved rules:", error);
       }
     }
 
@@ -84,7 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         discountActive = config.active || false;
         discountTitle = config.title || "Customer Tag Discount";
       } catch (error) {
-        console.error("Error parsing saved config:", error);
+        //console.error("Error parsing saved config:", error);
       }
     }
 
@@ -119,7 +119,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
   } catch (error) {
-    console.error("Error loading customer tag discount rules:", error);
+    //console.error("Error loading customer tag discount rules:", error);
   }
 
   return { rules, discountActive, discountTitle };
@@ -218,7 +218,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
 
       const functionsData = await functionsResponse.json();
-      console.log("Available functions:", JSON.stringify(functionsData, null, 2));
+      //console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
       // Customer tag PRODUCT discount function'ını bul
       // ÖNEMLİ: "customer-tag-product-discount" bir PRODUCT discount'tur, order discount değil!
@@ -242,10 +242,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           };
         }
 
-        console.log("Using order discount function as fallback:", discountFunction);
+        //console.log("Using order discount function as fallback:", discountFunction);
       }
 
-      console.log("Found discount function:", discountFunction);
+      //console.log("Found discount function:", discountFunction);
 
       // Mevcut customer tag discount'u kontrol et ve sil
       const existingDiscountsResponse = await admin.graphql(
@@ -328,7 +328,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
 
       const createResult = await createResponse.json();
-      console.log("Discount creation result:", JSON.stringify(createResult, null, 2));
+      //console.log("Discount creation result:", JSON.stringify(createResult, null, 2));
 
       if (createResult.data?.discountAutomaticAppCreate?.userErrors?.length > 0) {
         return {
@@ -422,7 +422,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return { success: false, message: "Geçersiz işlem." };
   } catch (error: any) {
-    console.error("Action error:", error);
+    //console.error("Action error:", error);
     return { success: false, message: "Hata: " + error.message };
   }
 };

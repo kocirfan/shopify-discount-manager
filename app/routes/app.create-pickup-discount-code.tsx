@@ -56,7 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       code: "PICKUP2"
     };
   } catch (error) {
-    console.error("Error checking discount code:", error);
+    //console.error("Error checking discount code:", error);
     return { discountExists: false, discountData: null, code: "PICKUP2" };
   }
 };
@@ -215,7 +215,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       error: "Invalid action"
     };
   } catch (error: any) {
-    console.error("Error managing discount code:", error);
+    //console.error("Error managing discount code:", error);
     return {
       success: false,
       error: error?.message || String(error)

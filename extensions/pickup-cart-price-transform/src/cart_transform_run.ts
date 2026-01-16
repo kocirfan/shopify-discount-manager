@@ -21,9 +21,9 @@ const NO_CHANGES: CartTransformRunResult = {
 };
 
 export function run(input: CartTransformRunInput): CartTransformRunResult {
-  console.error('=== CART TRANSFORM - DEVRE DIŞI ===');
-  console.error('Pickup indirimi "pickup-order-discount" tarafından uygulanıyor.');
-  console.error('Bu function hiçbir değişiklik yapmıyor.');
+  //console.error('=== CART TRANSFORM - DEVRE DIŞI ===');
+  //console.error('Pickup indirimi "pickup-order-discount" tarafından uygulanıyor.');
+  //console.error('Bu function hiçbir değişiklik yapmıyor.');
 
   // Her zaman boş operations döndür - hiçbir fiyat değişikliği yapma
   return NO_CHANGES;

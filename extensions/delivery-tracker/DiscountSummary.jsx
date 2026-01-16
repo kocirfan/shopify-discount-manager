@@ -7,7 +7,7 @@ import {
 export default extension(
   'purchase.checkout.payment-method-list.render-before',
   (root, { cost, deliveryGroups }) => {
-    console.log('[DISCOUNT SUMMARY] ✅ Extension initialized');
+    //console.log('[DISCOUNT SUMMARY] ✅ Extension initialized');
 
     const container = root.createComponent(InlineLayout, {
       spacing: 'base',
@@ -97,7 +97,7 @@ export default extension(
           root.appendChild(container);
         }
 
-        console.log('[DISCOUNT SUMMARY] 💰 Showing pickup discount:', discountValue.toFixed(2));
+        //console.log('[DISCOUNT SUMMARY] 💰 Showing pickup discount:', discountValue.toFixed(2));
       } else {
         if (container.parent) {
           root.removeChild(container);

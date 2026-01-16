@@ -27,7 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     return { hasActiveTransform, transforms: result.data?.cartTransforms?.nodes };
   } catch (error) {
-    console.error("Error checking cart transforms:", error);
+    //console.error("Error checking cart transforms:", error);
     return { hasActiveTransform: false, transforms: [] };
   }
 };
@@ -62,11 +62,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
 
     const result: any = await response.json();
-    console.log("Cart Transform created:", JSON.stringify(result, null, 2));
+    //console.log("Cart Transform created:", JSON.stringify(result, null, 2));
 
     // GraphQL errors kontrolü
     if (result.errors) {
-      console.error("❌ GRAPHQL ERRORS:", JSON.stringify(result.errors, null, 2));
+      //console.error("❌ GRAPHQL ERRORS:", JSON.stringify(result.errors, null, 2));
       return {
         success: false,
         error: result.errors.map((e: any) => e.message).join(", ")
@@ -75,20 +75,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const errors = result.data?.cartTransformCreate?.userErrors;
     if (errors && errors.length > 0) {
-      console.error("❌ USER ERRORS:", JSON.stringify(errors, null, 2));
+      //console.error("❌ USER ERRORS:", JSON.stringify(errors, null, 2));
       return { success: false, errors };
     }
 
     if (result.data?.cartTransformCreate?.cartTransform) {
-      console.log("✅ Cart Transform activated successfully!");
+      //console.log("✅ Cart Transform activated successfully!");
       return { success: true, data: result };
     }
 
-    console.error("❌ No cart transform created");
+    //console.error("❌ No cart transform created");
     return { success: false, error: "No cart transform created" };
   } catch (error: any) {
-    console.error("Error activating cart transform:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
+    //console.error("Error activating cart transform:", error);
+    //console.error("Error details:", JSON.stringify(error, null, 2));
     return {
       success: false,
       error: error?.body?.errors?.[0]?.message || error?.message || String(error)

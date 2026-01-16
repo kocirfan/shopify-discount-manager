@@ -60,7 +60,7 @@ interface RunInput {
 }
 
 export function run(input: RunInput): FunctionResult {
-  console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
+  //console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
 
   const emptyReturn: FunctionResult = {
     discounts: [],
@@ -75,13 +75,13 @@ export function run(input: RunInput): FunctionResult {
   const customer = input.cart.buyerIdentity?.customer;
 
   if (!customer?.id) {
-    console.error("❌ LOGIN GEREKLİ: Müşteri giriş yapmamış (guest)");
-    console.error("   Tag bazlı hiçbir indirim UYGULANMAYACAK");
+    //console.error("❌ LOGIN GEREKLİ: Müşteri giriş yapmamış (guest)");
+    //console.error("   Tag bazlı hiçbir indirim UYGULANMAYACAK");
     return emptyReturn;
   }
 
-  console.error("✅ Müşteri giriş yapmış:", customer.id);
-  console.error("   E-posta:", customer.email || "(yok)");
+  //console.error("✅ Müşteri giriş yapmış:", customer.id);
+  //console.error("   E-posta:", customer.email || "(yok)");
 
   // ============================================================
   // KURAL 2: MÜŞTERİ TAG DOĞRULAMASI
@@ -92,18 +92,18 @@ export function run(input: RunInput): FunctionResult {
     .filter((t) => t.hasTag)
     .map((t) => t.tag.toLowerCase());
 
-  console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
+  //console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
 
   if (activeTags.length === 0) {
-    console.error("❌ TAG BULUNAMADI: Kullanıcının eşleşen tag'i yok");
-    console.error("   Tag bazlı indirim UYGULANMAYACAK");
+    //console.error("❌ TAG BULUNAMADI: Kullanıcının eşleşen tag'i yok");
+    //console.error("   Tag bazlı indirim UYGULANMAYACAK");
     return emptyReturn;
   }
 
   // Kuralları al
   const rulesJson = input.shop?.customerTagDiscountRules?.value;
   if (!rulesJson) {
-    console.error("❌ KURAL BULUNAMADI");
+    //console.error("❌ KURAL BULUNAMADI");
     return emptyReturn;
   }
 
@@ -111,7 +111,7 @@ export function run(input: RunInput): FunctionResult {
   try {
     rules = JSON.parse(rulesJson);
   } catch {
-    console.error("❌ JSON PARSE HATASI");
+    //console.error("❌ JSON PARSE HATASI");
     return emptyReturn;
   }
 
@@ -130,11 +130,11 @@ export function run(input: RunInput): FunctionResult {
   }
 
   if (!matchedRule) {
-    console.error("❌ EŞLEŞME YOK");
+    //console.error("❌ EŞLEŞME YOK");
     return emptyReturn;
   }
 
-  console.error(`🎯 Kural: ${matchedRule.customerTag} -> %${matchedRule.discountPercentage}`);
+  //console.error(`🎯 Kural: ${matchedRule.customerTag} -> %${matchedRule.discountPercentage}`);
 
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
@@ -144,21 +144,21 @@ export function run(input: RunInput): FunctionResult {
   for (const line of input.cart.lines) {
     if (line.merchandise.__typename === "ProductVariant" && line.merchandise.id) {
       targets.push({ productVariant: { id: line.merchandise.id } });
-      console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
+      //console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
     }
   }
 
   if (targets.length === 0) {
-    console.error("❌ Ürün bulunamadı");
+    //console.error("❌ Ürün bulunamadı");
     return emptyReturn;
   }
 
-  console.error(`✅ ${targets.length} ürüne %${matchedRule.discountPercentage} indirim`);
+  //console.error(`✅ ${targets.length} ürüne %${matchedRule.discountPercentage} indirim`);
 
   return {
     discounts: [{
       value: { percentage: { value: matchedRule.discountPercentage.toString() } },
-      message: `%${matchedRule.discountPercentage} müşteri indirimi`,
+      message: `Korting`,
       targets,
     }],
     discountApplicationStrategy: "FIRST",
