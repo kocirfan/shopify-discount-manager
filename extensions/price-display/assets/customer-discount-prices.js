@@ -99,7 +99,7 @@
     element.setAttribute(CONFIG.processedAttr, 'true');
 
     // Sadece fiyatı değiştir: yeni fiyat (kırmızı) + eski fiyat (üstü çizili)
-    element.innerHTML = `<span style="color:#e53935;font-weight:bold">${newPrice}</span> <s style="opacity:0.6">${oldPrice}</s>`;
+    element.innerHTML = `<span style="color:#e53935;font-weight:bold">${newPrice}</span> <s style="opacity:0.6; color:#000!important;">${oldPrice}</s>`;
   }
 
   /**
