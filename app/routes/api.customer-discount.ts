@@ -46,39 +46,52 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
+  let admin;
   try {
     // Unauthenticated admin API (app proxy için)
-    const { admin } = await unauthenticated.admin(shop);
+    const result = await unauthenticated.admin(shop);
+    admin = result.admin;
+  } catch (error) {
+    console.error("[Customer Discount API] Admin session error:", error);
+    return new Response(
+      JSON.stringify({
+        discountPercentage: 0,
+        message: "Store bağlantısı kurulamadı",
+        error: "session_error"
+      }),
+      { headers }
+    );
+  }
 
+  try {
     // Müşteri bilgilerini ve tag'lerini al
     const customerResponse = await admin.graphql(
       `#graphql
         query GetCustomerTags($customerId: ID!) {
           customer(id: $customerId) {
             id
-            email
             tags
           }
         }
       `,
       { variables: { customerId: `gid://shopify/Customer/${customerId}` } }
     );
-    
+
     const customerData = await customerResponse.json();
     const customer = customerData.data?.customer;
-    
+
     if (!customer) {
       return new Response(
-        JSON.stringify({ 
-          discountPercentage: 0, 
+        JSON.stringify({
+          discountPercentage: 0,
           discountName: null,
           customerTag: null,
-          message: "Müşteri bulunamadı" 
+          message: "Müşteri bulunamadı"
         }),
         { headers }
       );
     }
-    
+
     const customerTags = (customer.tags || []).map((t: string) => t.toLowerCase());
     
     // İndirim kurallarını metafield'dan al
@@ -135,24 +148,34 @@ export async function loader({ request }: LoaderFunctionArgs) {
         discountPercentage: bestMatch.discountPercentage,
         discountName: bestMatch.discountName || null,
         customerTag: bestMatch.customerTag || null,
-        customerEmail: customer.email,
         allTags: customer.tags,
       }),
       { headers }
     );
     
   } catch (error) {
-    console.error("Customer discount API error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Customer discount API error:", errorMessage);
+
+    // Scope hatası mı kontrol et
+    if (errorMessage.includes("read_customers") || errorMessage.includes("Access denied")) {
+      return new Response(
+        JSON.stringify({
+          discountPercentage: 0,
+          message: "Uygulama izinleri güncellenmeli. Lütfen Shopify Admin'den uygulamayı açın.",
+          error: "scope_error"
+        }),
+        { headers }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ 
-        discountPercentage: 0, 
-        error: "Bir hata oluştu",
-        details: error instanceof Error ? error.message : "Unknown error"
+      JSON.stringify({
+        discountPercentage: 0,
+        message: "Bir hata oluştu",
+        error: "api_error"
       }),
-      { 
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      }
+      { headers }
     );
   }
 }
