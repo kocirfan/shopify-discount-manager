@@ -60,7 +60,7 @@ interface RunInput {
 }
 
 export function run(input: RunInput): FunctionResult {
-  //console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
+  console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
 
   const emptyReturn: FunctionResult = {
     discounts: [],
@@ -80,8 +80,8 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  //console.error("✅ Müşteri giriş yapmış:", customer.id);
-  //console.error("   E-posta:", customer.email || "(yok)");
+  console.error("✅ Müşteri giriş yapmış:", customer.id);
+  console.error("   E-posta:", customer.email || "(yok)");
 
   // ============================================================
   // KURAL 2: MÜŞTERİ TAG DOĞRULAMASI
@@ -92,7 +92,8 @@ export function run(input: RunInput): FunctionResult {
     .filter((t) => t.hasTag)
     .map((t) => t.tag.toLowerCase());
 
-  //console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
+  console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
+  console.error("🔍 hasTags raw:", JSON.stringify(customer.hasTags));
 
   if (activeTags.length === 0) {
     //console.error("❌ TAG BULUNAMADI: Kullanıcının eşleşen tag'i yok");
@@ -130,11 +131,11 @@ export function run(input: RunInput): FunctionResult {
   }
 
   if (!matchedRule) {
-    //console.error("❌ EŞLEŞME YOK");
+    console.error("❌ EŞLEŞME YOK - activeTags:", activeTags);
     return emptyReturn;
   }
 
-  //console.error(`🎯 Kural: ${matchedRule.customerTag} -> %${matchedRule.discountPercentage}`);
+  console.error(`🎯 Kural EŞLEŞTI: ${matchedRule.customerTag} -> %${matchedRule.discountPercentage}`);
 
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
