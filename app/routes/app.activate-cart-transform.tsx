@@ -114,34 +114,34 @@ export default function ActivateCartTransform() {
 
   return (
     <Page
-      title="Activate Cart Transform"
-      subtitle="Enable automatic pickup discount via Cart Transform function"
-      backAction={{ content: "Settings", url: "/app" }}
+      title="Cart Transform Activeren"
+      subtitle="Activeer automatische afhaalkorting via Cart Transform functie"
+      backAction={{ content: "Instellingen", url: "/app" }}
     >
       <Layout>
         <Layout.Section>
           {loaderData?.hasActiveTransform && !actionData && (
-            <Banner tone="warning" title="⚠️ Cart Transform is Currently Active">
-              <p>Cart Transform modifies product prices directly. If you're also using Order Discount, this can cause duplicate discounts.</p>
-              <p><strong>Click "Deactivate Cart Transform" below to use only Order Discount (recommended).</strong></p>
+            <Banner tone="warning" title="⚠️ Cart Transform is Momenteel Actief">
+              <p>Cart Transform wijzigt productprijzen direct. Als u ook Order Discount gebruikt, kan dit dubbele kortingen veroorzaken.</p>
+              <p><strong>Klik hieronder op "Cart Transform Deactiveren" om alleen Order Discount te gebruiken (aanbevolen).</strong></p>
             </Banner>
           )}
 
           {actionData?.success && actionData?.deactivated && (
-            <Banner tone="success" title="✅ Cart Transform Deactivated!">
-              Cart Transform has been deactivated successfully. Now only Order Discount will apply to the cart subtotal (no duplicate discounts).
+            <Banner tone="success" title="✅ Cart Transform Gedeactiveerd!">
+              Cart Transform is succesvol gedeactiveerd. Nu wordt alleen Order Discount toegepast op het winkelwagentotaal (geen dubbele kortingen).
             </Banner>
           )}
 
           {actionData?.success && !actionData?.deactivated && (
-            <Banner tone="success" title="✅ Cart Transform Activated!">
-              Cart Transform function has been activated successfully. Pickup discounts will now be applied to product prices!
+            <Banner tone="success" title="✅ Cart Transform Geactiveerd!">
+              Cart Transform functie is succesvol geactiveerd. Afhaalkorting wordt nu toegepast op productprijzen!
             </Banner>
           )}
 
           {actionData?.success === false && (
-            <Banner tone="critical" title="❌ Error">
-              {actionData.error || "Unknown error occurred"}
+            <Banner tone="critical" title="❌ Fout">
+              {actionData.error || "Onbekende fout opgetreden"}
               {actionData.errors && (
                 <BlockStack gap="200">
                   {actionData.errors.map((err: any, idx: number) => (
@@ -157,26 +157,26 @@ export default function ActivateCartTransform() {
           <Card>
             <BlockStack gap="400">
               <div>
-                <strong>⚠️ Warning: Cart Transform vs Order Discount</strong>
+                <strong>⚠️ Waarschuwing: Cart Transform vs Order Discount</strong>
                 <p>
-                  <strong>Cart Transform</strong> modifies product prices directly in the cart.
-                  This can cause <strong>duplicate discounts</strong> if you're also using Order Discount function.
+                  <strong>Cart Transform</strong> wijzigt productprijzen direct in de winkelwagen.
+                  Dit kan <strong>dubbele kortingen</strong> veroorzaken als u ook de Order Discount functie gebruikt.
                 </p>
               </div>
 
               <div>
-                <strong>Recommendation:</strong>
+                <strong>Aanbeveling:</strong>
                 <ul>
-                  <li>✅ <strong>Use Order Discount only</strong> - Applies discount to cart subtotal (cleaner, no duplicates)</li>
-                  <li>❌ <strong>Avoid using both</strong> - Cart Transform + Order Discount = duplicate discounts</li>
+                  <li>✅ <strong>Gebruik alleen Order Discount</strong> - Past korting toe op winkelwagentotaal (schoner, geen duplicaten)</li>
+                  <li>❌ <strong>Vermijd beide te gebruiken</strong> - Cart Transform + Order Discount = dubbele kortingen</li>
                 </ul>
               </div>
 
               <div>
-                <strong>What is Cart Transform?</strong>
+                <strong>Wat is Cart Transform?</strong>
                 <p>
-                  Cart Transform adjusts individual product prices based on delivery method.
-                  When pickup is selected, it reduces each product's price by the discount percentage.
+                  Cart Transform past individuele productprijzen aan op basis van bezorgmethode.
+                  Wanneer afhalen is geselecteerd, verlaagt het de prijs van elk product met het kortingspercentage.
                 </p>
               </div>
 
@@ -188,7 +188,7 @@ export default function ActivateCartTransform() {
                     onClick={handleDeactivate}
                     loading={isLoading && !actionData}
                   >
-                    🛑 Deactivate Cart Transform (Recommended)
+                    🛑 Cart Transform Deactiveren (Aanbevolen)
                   </Button>
                 )}
 
@@ -199,8 +199,8 @@ export default function ActivateCartTransform() {
                   disabled={loaderData?.hasActiveTransform}
                 >
                   {loaderData?.hasActiveTransform
-                    ? "✅ Already Active"
-                    : "Activate Cart Transform"}
+                    ? "✅ Reeds Actief"
+                    : "Cart Transform Activeren"}
                 </Button>
               </div>
             </BlockStack>

@@ -46,7 +46,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       );
 
-      return { success: true, message: "Metafield temizlendi!" };
+      return { success: true, message: "Metafield gewist!" };
     }
 
     if (action === "list_discounts") {
@@ -81,7 +81,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const discounts = data.data?.automaticDiscountNodes?.edges || [];
       return {
         success: true,
-        message: `${discounts.length} adet automatic discount bulundu.`,
+        message: `${discounts.length} automatische kortingen gevonden.`,
         discounts: discounts
       };
     }
@@ -134,11 +134,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       return {
         success: true,
-        message: `${deleted} adet automatic discount silindi!`
+        message: `${deleted} automatische kortingen verwijderd!`
       };
     }
 
-    return { success: false, message: "Bilinmeyen işlem" };
+    return { success: false, message: "Onbekende actie" };
   } catch (error: any) {
     //console.error("Cleanup error:", error);
     return { success: false, message: error.message };
@@ -156,7 +156,7 @@ export default function Cleanup() {
   };
 
   return (
-    <Page title="Cleanup & Debug" backAction={{ url: "/app" }}>
+    <Page title="Opschonen & Debug" backAction={{ url: "/app" }}>
       <Layout>
         {actionData && (
           <Layout.Section>
@@ -170,13 +170,13 @@ export default function Cleanup() {
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h2">
-                Metafield Temizleme
+                Metafield Wissen
               </Text>
               <Text as="p" tone="subdued">
-                Admin panelinde kaydettiğiniz teslimat ayarlarını temizler.
+                Wist de bezorginstellingen die u in het admin paneel hebt opgeslagen.
               </Text>
               <Button onClick={() => handleAction("clear_metafield")} tone="critical">
-                Metafield'ı Temizle
+                Metafield Wissen
               </Button>
             </BlockStack>
           </Card>
@@ -186,17 +186,17 @@ export default function Cleanup() {
           <Card>
             <BlockStack gap="400">
               <Text variant="headingMd" as="h2">
-                Automatic Discounts
+                Automatische Kortingen
               </Text>
               <Text as="p" tone="subdued">
-                Shopify Admin'deki tüm automatic discount'ları listele veya sil.
+                Bekijk of verwijder alle automatische kortingen in Shopify Admin.
               </Text>
               <BlockStack gap="200">
                 <Button onClick={() => handleAction("list_discounts")}>
-                  Discount'ları Listele
+                  Kortingen Weergeven
                 </Button>
                 <Button onClick={() => handleAction("delete_all_discounts")} tone="critical">
-                  Tüm Automatic Discount'ları Sil
+                  Alle Automatische Kortingen Verwijderen
                 </Button>
               </BlockStack>
             </BlockStack>
@@ -208,7 +208,7 @@ export default function Cleanup() {
             <Card>
               <BlockStack gap="300">
                 <Text variant="headingMd" as="h2">
-                  Bulunan Discount'lar ({actionData.discounts.length})
+                  Gevonden Kortingen ({actionData.discounts.length})
                 </Text>
                 {actionData.discounts.map((edge: any, index: number) => (
                   <Card key={index}>
@@ -218,7 +218,7 @@ export default function Cleanup() {
                       </Text>
                       {edge.node.automaticDiscount?.title && (
                         <Text as="p">
-                          <strong>Title:</strong> {edge.node.automaticDiscount.title}
+                          <strong>Titel:</strong> {edge.node.automaticDiscount.title}
                         </Text>
                       )}
                     </BlockStack>

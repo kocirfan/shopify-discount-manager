@@ -107,60 +107,60 @@ export default function DeactivateCartTransform() {
 
   return (
     <Page
-      title="Deactivate Cart Transform"
-      subtitle="Turn off cart price modifications"
-      backAction={{ content: "Settings", url: "/app" }}
+      title="Cart Transform Deactiveren"
+      subtitle="Winkelwagen prijswijzigingen uitschakelen"
+      backAction={{ content: "Instellingen", url: "/app" }}
     >
       <Layout>
         <Layout.Section>
           {!loaderData?.hasActiveTransform && !actionData && (
-            <Banner tone="info" title="ℹ️ No Active Cart Transform">
-              <p>There is no active Cart Transform function on your store.</p>
+            <Banner tone="info" title="ℹ️ Geen Actieve Cart Transform">
+              <p>Er is geen actieve Cart Transform functie in uw winkel.</p>
             </Banner>
           )}
 
           {actionData?.success && actionData?.deactivated && (
-            <Banner tone="success" title="✅ Cart Transform Deactivated!">
-              Cart Transform has been deactivated successfully. Now only Order Discount will apply to the cart subtotal (no duplicate discounts).
+            <Banner tone="success" title="✅ Cart Transform Gedeactiveerd!">
+              Cart Transform is succesvol gedeactiveerd. Nu wordt alleen Order Discount toegepast op het winkelwagentotaal (geen dubbele kortingen).
             </Banner>
           )}
 
           {actionData?.success === false && (
-            <Banner tone="critical" title="❌ Error">
-              {actionData.error || "Unknown error occurred"}
+            <Banner tone="critical" title="❌ Fout">
+              {actionData.error || "Onbekende fout opgetreden"}
             </Banner>
           )}
 
           {loaderData?.hasActiveTransform && !actionData && (
-            <Banner tone="warning" title="⚠️ Cart Transform is Currently Active">
-              <p>Cart Transform modifies product prices directly. If you're also using Order Discount, this can cause duplicate discounts.</p>
-              <p><strong>Click the button below to deactivate Cart Transform.</strong></p>
+            <Banner tone="warning" title="⚠️ Cart Transform is Momenteel Actief">
+              <p>Cart Transform wijzigt productprijzen direct. Als u ook Order Discount gebruikt, kan dit dubbele kortingen veroorzaken.</p>
+              <p><strong>Klik op de onderstaande knop om Cart Transform te deactiveren.</strong></p>
             </Banner>
           )}
 
           <Card>
             <BlockStack gap="400">
               <div>
-                <strong>Why Deactivate Cart Transform?</strong>
+                <strong>Waarom Cart Transform Deactiveren?</strong>
                 <p>
-                  If you're using both Cart Transform and Order Discount, you may see duplicate discounts:
+                  Als u zowel Cart Transform als Order Discount gebruikt, kunt u dubbele kortingen zien:
                 </p>
                 <ul>
-                  <li>Cart Transform: Modifies product prices directly</li>
-                  <li>Order Discount: Applies discount to cart subtotal</li>
+                  <li>Cart Transform: Wijzigt productprijzen direct</li>
+                  <li>Order Discount: Past korting toe op winkelwagentotaal</li>
                 </ul>
                 <p>
-                  <strong>Recommended:</strong> Use only Order Discount for cleaner, non-duplicate discounts.
+                  <strong>Aanbevolen:</strong> Gebruik alleen Order Discount voor schonere, niet-dubbele kortingen.
                 </p>
               </div>
 
               <div>
-                <strong>Current Status:</strong>
+                <strong>Huidige Status:</strong>
                 <p>
                   {loaderData?.hasActiveTransform ? (
-                    <span style={{ color: 'orange' }}>⚠️ Cart Transform is <strong>ACTIVE</strong></span>
+                    <span style={{ color: 'orange' }}>⚠️ Cart Transform is <strong>ACTIEF</strong></span>
                   ) : (
-                    <span style={{ color: 'green' }}>✅ Cart Transform is <strong>INACTIVE</strong></span>
+                    <span style={{ color: 'green' }}>✅ Cart Transform is <strong>INACTIEF</strong></span>
                   )}
                 </p>
               </div>
@@ -172,7 +172,7 @@ export default function DeactivateCartTransform() {
                   onClick={handleDeactivate}
                   loading={isLoading && !actionData}
                 >
-                  🛑 Deactivate Cart Transform
+                  🛑 Cart Transform Deactiveren
                 </Button>
               )}
 
@@ -181,7 +181,7 @@ export default function DeactivateCartTransform() {
                   disabled
                   variant="secondary"
                 >
-                  Already Deactivated
+                  Reeds Gedeactiveerd
                 </Button>
               )}
             </BlockStack>

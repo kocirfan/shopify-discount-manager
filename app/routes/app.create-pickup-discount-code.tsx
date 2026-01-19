@@ -245,27 +245,27 @@ export default function CreatePickupDiscountCode() {
 
   return (
     <Page
-      title="Pickup Discount Code"
-      subtitle="Manage PICKUP2 discount code for automatic pickup discounts"
-      backAction={{ content: "Settings", url: "/app" }}
+      title="Afhaal Kortingscode"
+      subtitle="Beheer PICKUP2 kortingscode voor automatische afhaalkorting"
+      backAction={{ content: "Instellingen", url: "/app" }}
     >
       <Layout>
         <Layout.Section>
           {actionData?.success && !actionData?.deleted && (
-            <Banner tone="success" title="✅ Discount Code Created!">
-              <p>PICKUP2 discount code has been created successfully. It will be automatically applied when customers select pickup.</p>
+            <Banner tone="success" title="✅ Kortingscode Aangemaakt!">
+              <p>PICKUP2 kortingscode is succesvol aangemaakt. Deze wordt automatisch toegepast wanneer klanten afhalen selecteren.</p>
             </Banner>
           )}
 
           {actionData?.success && actionData?.deleted && (
-            <Banner tone="success" title="✅ Discount Code Deleted!">
-              <p>PICKUP2 discount code has been deleted successfully.</p>
+            <Banner tone="success" title="✅ Kortingscode Verwijderd!">
+              <p>PICKUP2 kortingscode is succesvol verwijderd.</p>
             </Banner>
           )}
 
           {actionData?.success === false && (
-            <Banner tone="critical" title="❌ Error">
-              <p>{actionData.error || "Unknown error occurred"}</p>
+            <Banner tone="critical" title="❌ Fout">
+              <p>{actionData.error || "Onbekende fout opgetreden"}</p>
               {actionData.errors && (
                 <BlockStack gap="200">
                   {actionData.errors.map((err: any, idx: number) => (
@@ -281,42 +281,42 @@ export default function CreatePickupDiscountCode() {
           <Card>
             <BlockStack gap="400">
               <div>
-                <strong>Current Status:</strong>
+                <strong>Huidige Status:</strong>
                 <p>
                   {loaderData?.discountExists ? (
-                    <span style={{ color: 'green' }}>✅ PICKUP2 discount code <strong>EXISTS</strong></span>
+                    <span style={{ color: 'green' }}>✅ PICKUP2 kortingscode <strong>BESTAAT</strong></span>
                   ) : (
-                    <span style={{ color: 'orange' }}>⚠️ PICKUP2 discount code <strong>NOT FOUND</strong></span>
+                    <span style={{ color: 'orange' }}>⚠️ PICKUP2 kortingscode <strong>NIET GEVONDEN</strong></span>
                   )}
                 </p>
               </div>
 
               {loaderData?.discountData && (
                 <div>
-                  <strong>Discount Details:</strong>
+                  <strong>Kortingsdetails:</strong>
                   <ul>
                     <li><strong>Code:</strong> {loaderData.code}</li>
-                    <li><strong>Discount:</strong> 2% off all products</li>
-                    <li><strong>Status:</strong> {loaderData.discountData.codeDiscount?.status || 'ACTIVE'}</li>
-                    <li><strong>Usage:</strong> Unlimited uses, all customers</li>
+                    <li><strong>Korting:</strong> 2% korting op alle producten</li>
+                    <li><strong>Status:</strong> {loaderData.discountData.codeDiscount?.status || 'ACTIEF'}</li>
+                    <li><strong>Gebruik:</strong> Onbeperkt gebruik, alle klanten</li>
                   </ul>
                 </div>
               )}
 
               <div>
-                <strong>How it works:</strong>
+                <strong>Hoe het werkt:</strong>
                 <ul>
-                  <li>Customer selects pickup at checkout</li>
-                  <li>Extension automatically applies PICKUP2 discount code</li>
-                  <li>2% discount is applied to all products</li>
-                  <li>Works with other Order Discount functions from other apps</li>
-                  <li>Discount code is removed if customer switches to shipping</li>
+                  <li>Klant selecteert afhalen bij het afrekenen</li>
+                  <li>Extensie past automatisch PICKUP2 kortingscode toe</li>
+                  <li>2% korting wordt toegepast op alle producten</li>
+                  <li>Werkt samen met andere Order Discount functies van andere apps</li>
+                  <li>Kortingscode wordt verwijderd als klant overschakelt naar verzending</li>
                 </ul>
               </div>
 
               <div>
-                <strong>⚠️ Important:</strong>
-                <p>This discount code approach allows you to use pickup discount alongside other apps' Order Discount functions, since Shopify allows Discount Codes + Order Discounts to work together.</p>
+                <strong>⚠️ Belangrijk:</strong>
+                <p>Deze kortingscode aanpak stelt u in staat om afhaalkorting te gebruiken naast Order Discount functies van andere apps, aangezien Shopify Kortingscodes + Order Discounts samen laat werken.</p>
               </div>
 
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
@@ -326,7 +326,7 @@ export default function CreatePickupDiscountCode() {
                     onClick={handleCreate}
                     loading={isLoading && !actionData}
                   >
-                    Create PICKUP2 Discount Code
+                    PICKUP2 Kortingscode Aanmaken
                   </Button>
                 )}
 
@@ -336,14 +336,14 @@ export default function CreatePickupDiscountCode() {
                       disabled
                       variant="secondary"
                     >
-                      ✅ Already Created
+                      ✅ Reeds Aangemaakt
                     </Button>
                     <Button
                       tone="critical"
                       onClick={handleDelete}
                       loading={isLoading && !actionData}
                     >
-                      Delete Discount Code
+                      Kortingscode Verwijderen
                     </Button>
                   </>
                 )}

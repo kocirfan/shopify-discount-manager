@@ -192,11 +192,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (result.data?.metafieldsSet?.userErrors?.length > 0) {
         return {
           success: false,
-          message: "Hata: " + result.data.metafieldsSet.userErrors[0].message,
+          message: "Fout: " + result.data.metafieldsSet.userErrors[0].message,
         };
       }
 
-      return { success: true, message: "Kurallar başarıyla kaydedildi!" };
+      return { success: true, message: "Regels succesvol opgeslagen!" };
     }
 
     if (actionType === "activateDiscount") {
@@ -238,7 +238,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         if (!discountFunction) {
           return {
             success: false,
-            message: "Customer Tag Product Discount function bulunamadı. Lütfen önce extension'ı deploy edin."
+            message: "Customer Tag Product Discount functie niet gevonden. Implementeer eerst de extensie."
           };
         }
 
@@ -333,18 +333,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (createResult.data?.discountAutomaticAppCreate?.userErrors?.length > 0) {
         return {
           success: false,
-          message: "Hata: " + createResult.data.discountAutomaticAppCreate.userErrors[0].message,
+          message: "Fout: " + createResult.data.discountAutomaticAppCreate.userErrors[0].message,
         };
       }
 
       if (createResult.data?.discountAutomaticAppCreate?.automaticAppDiscount) {
         return {
           success: true,
-          message: `"${discountTitle}" discount başarıyla aktifleştirildi!`
+          message: `"${discountTitle}" korting succesvol geactiveerd!`
         };
       }
 
-      return { success: false, message: "Discount oluşturulamadı." };
+      return { success: false, message: "Korting kon niet worden aangemaakt." };
     }
 
     if (actionType === "deactivateDiscount") {
@@ -414,16 +414,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         );
 
-        return { success: true, message: "Discount deaktif edildi." };
+        return { success: true, message: "Korting gedeactiveerd." };
       }
 
-      return { success: false, message: "Aktif discount bulunamadı." };
+      return { success: false, message: "Geen actieve korting gevonden." };
     }
 
-    return { success: false, message: "Geçersiz işlem." };
+    return { success: false, message: "Ongeldige actie." };
   } catch (error: any) {
     //console.error("Action error:", error);
-    return { success: false, message: "Hata: " + error.message };
+    return { success: false, message: "Fout: " + error.message };
   }
 };
 
@@ -521,22 +521,22 @@ export default function CustomerTagDiscounts() {
 
   const tableRows = rules.map((rule) => [
     <Badge tone={rule.enabled ? "success" : "critical"}>
-      {rule.enabled ? "Aktif" : "Pasif"}
+      {rule.enabled ? "Actief" : "Inactief"}
     </Badge>,
     <Text as="span" fontWeight="bold">{rule.customerTag}</Text>,
-    `%${rule.discountPercentage}`,
+    `${rule.discountPercentage}%`,
     rule.discountName,
     <InlineStack gap="200">
       <Button
         icon={EditIcon}
         onClick={() => handleOpenModal(rule)}
-        accessibilityLabel="Düzenle"
+        accessibilityLabel="Bewerken"
         size="slim"
       />
       <Button
         icon={DeleteIcon}
         onClick={() => handleDeleteRule(rule.id)}
-        accessibilityLabel="Sil"
+        accessibilityLabel="Verwijderen"
         tone="critical"
         size="slim"
       />
@@ -544,17 +544,17 @@ export default function CustomerTagDiscounts() {
         onClick={() => handleToggleRule(rule.id)}
         size="slim"
       >
-        {rule.enabled ? "Deaktif Et" : "Aktif Et"}
+        {rule.enabled ? "Deactiveren" : "Activeren"}
       </Button>
     </InlineStack>,
   ]);
 
   return (
     <Page
-      title="Müşteri Tag İndirim Yönetimi"
-      subtitle="Müşteri tag'lerine göre otomatik indirimler tanımlayın"
+      title="Klant Tag Kortingsbeheer"
+      subtitle="Definieer automatische kortingen op basis van klant tags"
       primaryAction={{
-        content: "Yeni Kural Ekle",
+        content: "Nieuwe Regel Toevoegen",
         icon: PlusIcon,
         onAction: () => handleOpenModal(),
       }}
@@ -571,18 +571,18 @@ export default function CustomerTagDiscounts() {
         <Layout.Section>
           <Banner tone="info">
             <BlockStack gap="200">
-              <Text as="p" fontWeight="bold">Nasıl Çalışır?</Text>
+              <Text as="p" fontWeight="bold">Hoe Werkt Het?</Text>
               <Text as="p">
-                1. Müşteri tag'i ve indirim oranı belirleyin (örn: disc-10 → %10 indirim)
+                1. Bepaal klant tag en kortingspercentage (bijv. disc-10 → 10% korting)
               </Text>
               <Text as="p">
-                2. Tüm kurallar tek bir Shopify Discount altında yönetilir
+                2. Alle regels worden beheerd onder één Shopify Korting
               </Text>
               <Text as="p">
-                3. Müşteri checkout'ta tag'ine göre otomatik indirim alır
+                3. Klant krijgt automatisch korting bij afrekenen op basis van tag
               </Text>
               <Text as="p">
-                4. İndirim tüm ürünlere uygulanır ve diğer indirimlerle birleştirilebilir
+                4. Korting wordt toegepast op alle producten en kan gecombineerd worden met andere kortingen
               </Text>
             </BlockStack>
           </Banner>
@@ -591,28 +591,28 @@ export default function CustomerTagDiscounts() {
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">Discount Ayarları</Text>
+              <Text variant="headingMd" as="h2">Kortingsinstellingen</Text>
 
               <TextField
-                label="Discount Adı (Checkout'ta görünecek)"
+                label="Kortingsnaam (Zichtbaar bij afrekenen)"
                 value={discountTitle}
                 onChange={setDiscountTitle}
                 autoComplete="off"
-                helpText="Tüm müşteriler bu indirim adını görecek (örn: DiscountABC)"
+                helpText="Alle klanten zien deze kortingsnaam (bijv. KortingABC)"
               />
 
               <InlineStack gap="300">
                 <Badge tone={discountActive ? "success" : "critical"}>
-                  {discountActive ? "Discount Aktif" : "Discount Pasif"}
+                  {discountActive ? "Korting Actief" : "Korting Inactief"}
                 </Badge>
               </InlineStack>
 
               <InlineStack gap="300">
                 <Button onClick={handleActivateDiscount} variant="primary">
-                  Discount'u Aktifleştir
+                  Korting Activeren
                 </Button>
                 <Button onClick={handleDeactivateDiscount} tone="critical">
-                  Discount'u Deaktif Et
+                  Korting Deactiveren
                 </Button>
               </InlineStack>
             </BlockStack>
@@ -623,25 +623,25 @@ export default function CustomerTagDiscounts() {
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between">
-                <Text variant="headingMd" as="h2">İndirim Kuralları</Text>
+                <Text variant="headingMd" as="h2">Kortingsregels</Text>
                 <Button onClick={() => handleOpenModal()} icon={PlusIcon}>
-                  Yeni Kural Ekle
+                  Nieuwe Regel Toevoegen
                 </Button>
               </InlineStack>
 
               {rules.length > 0 ? (
                 <DataTable
                   columnContentTypes={["text", "text", "text", "text", "text"]}
-                  headings={["Durum", "Müşteri Tag'i", "İndirim Oranı", "Açıklama", "İşlemler"]}
+                  headings={["Status", "Klant Tag", "Kortingspercentage", "Beschrijving", "Acties"]}
                   rows={tableRows}
                 />
               ) : (
                 <Box padding="400" background="bg-surface-secondary">
                   <BlockStack gap="200" inlineAlign="center">
                     <Text as="p" tone="subdued">
-                      Henüz indirim kuralı tanımlanmamış.
+                      Er zijn nog geen kortingsregels gedefinieerd.
                     </Text>
-                    <Button onClick={() => handleOpenModal()}>İlk Kuralı Ekle</Button>
+                    <Button onClick={() => handleOpenModal()}>Eerste Regel Toevoegen</Button>
                   </BlockStack>
                 </Box>
               )}
@@ -653,10 +653,10 @@ export default function CustomerTagDiscounts() {
           <Card>
             <BlockStack gap="300">
               <Button variant="primary" size="large" onClick={handleSaveAllRules}>
-                Tüm Kuralları Kaydet
+                Alle Regels Opslaan
               </Button>
               <Text as="p" tone="subdued">
-                Kaydettiğinizde kurallar kalıcı olarak saklanır ve checkout'ta otomatik uygulanır.
+                Wanneer u opslaat, worden regels permanent opgeslagen en automatisch toegepast bij het afrekenen.
               </Text>
             </BlockStack>
           </Card>
@@ -665,13 +665,13 @@ export default function CustomerTagDiscounts() {
         <Layout.Section>
           <Card>
             <BlockStack gap="300">
-              <Text variant="headingMd" as="h2">Örnek Senaryo</Text>
+              <Text variant="headingMd" as="h2">Voorbeeldscenario</Text>
               <Box padding="300" background="bg-surface-secondary" borderRadius="200">
                 <BlockStack gap="200">
-                  <Text as="p"><strong>Kural 1:</strong> disc-10 tag'i → %10 indirim</Text>
-                  <Text as="p"><strong>Kural 2:</strong> disc-20 tag'i → %20 indirim</Text>
+                  <Text as="p"><strong>Regel 1:</strong> disc-10 tag → 10% korting</Text>
+                  <Text as="p"><strong>Regel 2:</strong> disc-20 tag → 20% korting</Text>
                   <Text as="p" tone="subdued">
-                    Her iki müşteri grubu da checkout'ta "{discountTitle}" görür, ancak indirim oranları farklı uygulanır.
+                    Beide klantgroepen zien "{discountTitle}" bij het afrekenen, maar de kortingspercentages worden verschillend toegepast.
                   </Text>
                 </BlockStack>
               </Box>
@@ -683,15 +683,15 @@ export default function CustomerTagDiscounts() {
       <Modal
         open={modalOpen}
         onClose={handleCloseModal}
-        title={editingRule ? "Kuralı Düzenle" : "Yeni Kural Ekle"}
+        title={editingRule ? "Regel Bewerken" : "Nieuwe Regel Toevoegen"}
         primaryAction={{
-          content: "Kaydet",
+          content: "Opslaan",
           onAction: handleSaveRule,
           disabled: !formData.customerTag || !formData.discountPercentage,
         }}
         secondaryActions={[
           {
-            content: "İptal",
+            content: "Annuleren",
             onAction: handleCloseModal,
           },
         ]}
@@ -699,31 +699,31 @@ export default function CustomerTagDiscounts() {
         <Modal.Section>
           <FormLayout>
             <TextField
-              label="Müşteri Tag'i"
+              label="Klant Tag"
               value={formData.customerTag}
               onChange={(value) => setFormData({ ...formData, customerTag: value })}
               autoComplete="off"
-              helpText="Müşteriye atanmış tag (örn: disc-10, vip, wholesale)"
+              helpText="Tag toegewezen aan klant (bijv. disc-10, vip, wholesale)"
               placeholder="disc-10"
             />
             <TextField
-              label="İndirim Oranı (%)"
+              label="Kortingspercentage (%)"
               type="number"
               value={formData.discountPercentage}
               onChange={(value) => setFormData({ ...formData, discountPercentage: value })}
               autoComplete="off"
-              helpText="Uygulanacak indirim yüzdesi"
+              helpText="Toe te passen kortingspercentage"
               placeholder="10"
               min={0}
               max={100}
             />
             <TextField
-              label="İndirim Açıklaması"
+              label="Kortingsbeschrijving"
               value={formData.discountName}
               onChange={(value) => setFormData({ ...formData, discountName: value })}
               autoComplete="off"
-              helpText="Bu kuralı tanımlayan açıklama (sadece admin panelinde görünür)"
-              placeholder="VIP Müşteri İndirimi"
+              helpText="Beschrijving van deze regel (alleen zichtbaar in admin paneel)"
+              placeholder="VIP Klantkorting"
             />
           </FormLayout>
         </Modal.Section>

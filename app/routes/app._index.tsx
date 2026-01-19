@@ -314,20 +314,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       //console.error("Metafield error:", error);
       return {
         success: false,
-        message: "Hata: " + error.message
+        message: "Fout: " + error.message
       };
     }
 
     if (result.data?.metafieldsSet?.metafields?.length > 0) {
       //console.log("✅ Metafield saved successfully!");
-      return { success: true, message: "Ayarlar başarıyla kaydedildi!" };
+      return { success: true, message: "Instellingen succesvol opgeslagen!" };
     }
 
     //console.error("❌ No metafield created");
-    return { success: false, message: "Metafield oluşturulamadı!" };
+    return { success: false, message: "Metafield kon niet worden aangemaakt!" };
   } catch (error: any) {
     //console.error("Error saving settings:", error);
-    return { success: false, message: "Kaydetme hatası: " + error.message };
+    return { success: false, message: "Opslaan mislukt: " + error.message };
   }
 };
 
@@ -369,13 +369,13 @@ export default function Index() {
       const result = await response.json();
       //console.log('Cart Transform activation result:', result);
       if (result.success) {
-        alert('✅ Cart Transform başarıyla aktifleştirildi! Artık TestKocirfan ile birlikte çalışacak.');
+        alert('✅ Cart Transform succesvol geactiveerd! Het werkt nu samen met TestKocirfan.');
       } else {
-        alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
+        alert('❌ Fout: ' + (result.error || JSON.stringify(result.errors)));
       }
     } catch (error) {
       //console.error('Error:', error);
-      alert('❌ Aktivasyon hatası');
+      alert('❌ Activatiefout');
     }
   };
 
@@ -387,18 +387,18 @@ export default function Index() {
       const result = await response.json();
       //console.log('Order Discount activation result:', result);
       if (result.success) {
-        alert('✅ Order Discount başarıyla aktifleştirildi! Pickup seçildiğinde otomatik sepet indirimi uygulanacak.');
+        alert('✅ Order Discount succesvol geactiveerd! Bij afhalen wordt automatisch winkelwagenkorting toegepast.');
       } else {
-        alert('❌ Hata: ' + (result.error || JSON.stringify(result.errors)));
+        alert('❌ Fout: ' + (result.error || JSON.stringify(result.errors)));
       }
     } catch (error) {
       //console.error('Error:', error);
-      alert('❌ Aktivasyon hatası');
+      alert('❌ Activatiefout');
     }
   };
 
   return (
-    <Page title="Delivery Discount Manager">
+    <Page title="Bezorgkorting Beheer">
       <Layout>
         {actionData?.success && (
           <Layout.Section>
@@ -411,8 +411,8 @@ export default function Index() {
         <Layout.Section>
           <Banner tone="info">
             <p>
-              Teslimat metodlarına göre otomatik indirim uygulayın. Pickup
-              seçildiğinde sepete %20 indirim otomatik uygulanır.
+              Pas automatische kortingen toe op basis van bezorgmethoden. Bij afhalen
+              wordt automatisch 20% korting toegepast op de winkelwagen.
             </p>
           </Banner>
         </Layout.Section>
@@ -421,18 +421,18 @@ export default function Index() {
           <Card>
             <BlockStack gap="300">
               <Text variant="headingMd" as="h2">
-                🎯 Temel İndirim Oranı
+                🎯 Basiskortingspercentage
               </Text>
               <Text as="p" tone="subdued">
-                Diğer indirimlerle birlikte uygulanacak temel indirim yüzdesi (örn: TestKocirfan, müşteri segmentasyonu)
+                Basiskortingspercentage dat samen met andere kortingen wordt toegepast (bijv. TestKocirfan, klantsegmentatie)
               </Text>
               <TextField
-                label="Temel İndirim Yüzdesi (%)"
+                label="Basiskortingspercentage (%)"
                 type="number"
                 value={baseDiscount.toString()}
                 onChange={(value) => setBaseDiscount(parseFloat(value) || 0)}
                 autoComplete="off"
-                helpText="Bu oran pickup indirimiyle birleştirilecek (compound discount)"
+                helpText="Dit percentage wordt gecombineerd met de afhaalkorting (samengestelde korting)"
               />
             </BlockStack>
           </Card>
@@ -448,7 +448,7 @@ export default function Index() {
                       {method.name}
                     </Text>
                     <Checkbox
-                      label="Aktif"
+                      label="Actief"
                       checked={method.enabled}
                       onChange={() => handleToggle(method.id)}
                     />
@@ -457,10 +457,10 @@ export default function Index() {
                   {method.enabled && (
                     <BlockStack gap="300">
                       <Select
-                        label="İndirim Tipi"
+                        label="Kortingstype"
                         options={[
-                          { label: "Yüzde (%)", value: "percentage" },
-                          { label: "Sabit Tutar (€)", value: "fixed" },
+                          { label: "Percentage (%)", value: "percentage" },
+                          { label: "Vast bedrag (€)", value: "fixed" },
                         ]}
                         value={method.discountType}
                         onChange={(value) =>
@@ -469,7 +469,7 @@ export default function Index() {
                       />
 
                       <TextField
-                        label={`İndirim Değeri ${
+                        label={`Kortingswaarde ${
                           method.discountType === "percentage" ? "(%)" : "(€)"
                         }`}
                         type="number"
@@ -495,14 +495,14 @@ export default function Index() {
           <Card>
             <BlockStack gap="300">
               <Text variant="headingMd" as="h2">
-                ⚡ Order Discount Aktivasyonu (ÖNERİLEN)
+                ⚡ Order Discount Activering (AANBEVOLEN)
               </Text>
               <Text as="p" tone="subdued">
-                Pickup seçildiğinde sepet toplamına otomatik indirim uygulamak için Order Discount function'ını aktifleştirin.
-                Bu indirim diğer indirimlerle (TESTKOCIRFAN) birlikte çalışır ve checkout'ta görünür olur.
+                Activeer de Order Discount functie om automatisch korting toe te passen op het winkelwagentotaal bij afhalen.
+                Deze korting werkt samen met andere kortingen (TESTKOCIRFAN) en is zichtbaar bij het afrekenen.
               </Text>
               <Button onClick={handleActivateOrderDiscount} variant="primary">
-                Order Discount'u Aktifleştir
+                Order Discount Activeren
               </Button>
             </BlockStack>
           </Card>
@@ -512,14 +512,14 @@ export default function Index() {
           <Card>
             <BlockStack gap="300">
               <Text variant="headingMd" as="h2">
-                🔧 Cart Transform (Alternatif)
+                🔧 Cart Transform (Alternatief)
               </Text>
               <Text as="p" tone="subdued">
-                Alternatif olarak Cart Transform kullanılabilir ancak Order Discount önerilir.
-                Cart Transform ürün fiyatlarını değiştirir, Order Discount sepet toplamına indirim uygular.
+                Als alternatief kan Cart Transform worden gebruikt, maar Order Discount wordt aanbevolen.
+                Cart Transform wijzigt productprijzen, Order Discount past korting toe op het winkelwagentotaal.
               </Text>
               <Button onClick={handleActivateCartTransform}>
-                Cart Transform'u Aktifleştir
+                Cart Transform Activeren
               </Button>
             </BlockStack>
           </Card>
@@ -529,10 +529,10 @@ export default function Index() {
           <Card>
             <BlockStack gap="200">
               <Button variant="primary" size="large" onClick={handleSave}>
-                Ayarları Kaydet
+                Instellingen Opslaan
               </Button>
               <Text as="p" tone="subdued">
-                Kaydettiğinizde indirimler otomatik uygulanmaya başlar.
+                Wanneer u opslaat, worden kortingen automatisch toegepast.
               </Text>
             </BlockStack>
           </Card>
