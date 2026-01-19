@@ -24,6 +24,11 @@ query Input {
       customer {
         id
         email
+        # Müşteri metafield'ı - öncelikli indirim kaynağı
+        discountPercentage: metafield(namespace: "customer_discount", key: "percentage") {
+          value
+        }
+        # Mevcut tag sistemi - fallback
         hasTags(tags: [
           "disc-5", "disc-6", "disc-7", "disc-8", "disc-9", "disc-10", "disc-10.7",
           "disc-11", "disc-12", "disc-13", "disc-14", "disc-15", "disc-16", "disc-17",

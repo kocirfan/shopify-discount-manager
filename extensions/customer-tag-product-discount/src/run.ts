@@ -69,14 +69,11 @@ export function run(input: RunInput): FunctionResult {
 
   // ============================================================
   // KURAL 1: LOGIN ZORUNLULUĞU
-  // Guest kullanıcılar için tag bazlı indirim UYGULANMAZ.
-  // Müşteri tag'i okunamayacağı için hiçbir tag bazlı indirim uygulanmaz.
+  // Guest kullanıcılar için indirim UYGULANMAZ.
   // ============================================================
   const customer = input.cart.buyerIdentity?.customer;
 
   if (!customer?.id) {
-    //console.error("❌ LOGIN GEREKLİ: Müşteri giriş yapmamış (guest)");
-    //console.error("   Tag bazlı hiçbir indirim UYGULANMAYACAK");
     return emptyReturn;
   }
 
@@ -84,58 +81,81 @@ export function run(input: RunInput): FunctionResult {
   console.error("   E-posta:", customer.email || "(yok)");
 
   // ============================================================
-  // KURAL 2: MÜŞTERİ TAG DOĞRULAMASI
-  // Login olmuş olsa bile, tanımlı tag'lerden hiçbirine sahip değilse
-  // tag bazlı indirim UYGULANMAZ.
+  // ÖNCELİK 1: MÜŞTERİ METAFIELD KONTROLÜ (YENİ SİSTEM)
+  // Müşterinin customer_discount.percentage metafield'ı varsa,
+  // direkt bu değeri kullan - tag sistemi atlanır
   // ============================================================
-  const activeTags = (customer.hasTags || [])
-    .filter((t) => t.hasTag)
-    .map((t) => t.tag.toLowerCase());
+  const customerMetafieldValue = (customer as any).discountPercentage?.value;
+  let discountPercentage = 0;
+  let discountSource = "";
 
-  console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
-  console.error("🔍 hasTags raw:", JSON.stringify(customer.hasTags));
-
-  if (activeTags.length === 0) {
-    //console.error("❌ TAG BULUNAMADI: Kullanıcının eşleşen tag'i yok");
-    //console.error("   Tag bazlı indirim UYGULANMAYACAK");
-    return emptyReturn;
-  }
-
-  // Kuralları al
-  const rulesJson = input.shop?.customerTagDiscountRules?.value;
-  if (!rulesJson) {
-    //console.error("❌ KURAL BULUNAMADI");
-    return emptyReturn;
-  }
-
-  let rules: CustomerTagRule[];
-  try {
-    rules = JSON.parse(rulesJson);
-  } catch {
-    //console.error("❌ JSON PARSE HATASI");
-    return emptyReturn;
-  }
-
-  // En yüksek indirimli eşleşen kuralı bul
-  let matchedRule: CustomerTagRule | null = null;
-  let highestDiscount = 0;
-
-  for (const rule of rules) {
-    if (!rule.enabled) continue;
-    if (activeTags.includes(rule.customerTag.toLowerCase())) {
-      if (rule.discountPercentage > highestDiscount) {
-        highestDiscount = rule.discountPercentage;
-        matchedRule = rule;
-      }
+  if (customerMetafieldValue) {
+    const metafieldPercent = parseFloat(customerMetafieldValue);
+    if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
+      discountPercentage = metafieldPercent;
+      discountSource = "metafield";
+      console.error(`🎯 METAFIELD İNDİRİMİ: %${discountPercentage}`);
     }
   }
 
-  if (!matchedRule) {
-    console.error("❌ EŞLEŞME YOK - activeTags:", activeTags);
+  // ============================================================
+  // ÖNCELİK 2: TAG SİSTEMİ (MEVCUT SİSTEM - FALLBACK)
+  // Metafield yoksa, tag bazlı indirim sistemini kullan
+  // ============================================================
+  if (discountPercentage === 0) {
+    const activeTags = (customer.hasTags || [])
+      .filter((t) => t.hasTag)
+      .map((t) => t.tag.toLowerCase());
+
+    console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
+
+    if (activeTags.length === 0) {
+      return emptyReturn;
+    }
+
+    // Kuralları al
+    const rulesJson = input.shop?.customerTagDiscountRules?.value;
+    if (!rulesJson) {
+      return emptyReturn;
+    }
+
+    let rules: CustomerTagRule[];
+    try {
+      rules = JSON.parse(rulesJson);
+    } catch {
+      return emptyReturn;
+    }
+
+    // En yüksek indirimli eşleşen kuralı bul
+    let matchedRule: CustomerTagRule | null = null;
+    let highestDiscount = 0;
+
+    for (const rule of rules) {
+      if (!rule.enabled) continue;
+      if (activeTags.includes(rule.customerTag.toLowerCase())) {
+        if (rule.discountPercentage > highestDiscount) {
+          highestDiscount = rule.discountPercentage;
+          matchedRule = rule;
+        }
+      }
+    }
+
+    if (!matchedRule) {
+      console.error("❌ EŞLEŞME YOK - activeTags:", activeTags);
+      return emptyReturn;
+    }
+
+    discountPercentage = matchedRule.discountPercentage;
+    discountSource = `tag:${matchedRule.customerTag}`;
+    console.error(`🎯 TAG İNDİRİMİ: ${matchedRule.customerTag} -> %${discountPercentage}`);
+  }
+
+  // İndirim yüzdesi bulunamadıysa çık
+  if (discountPercentage <= 0) {
     return emptyReturn;
   }
 
-  console.error(`🎯 Kural EŞLEŞTI: ${matchedRule.customerTag} -> %${matchedRule.discountPercentage}`);
+  console.error(`💰 Uygulanacak indirim: %${discountPercentage} (kaynak: ${discountSource})`);
 
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
@@ -154,11 +174,11 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  //console.error(`✅ ${targets.length} ürüne %${matchedRule.discountPercentage} indirim`);
+  console.error(`✅ ${targets.length} ürüne %${discountPercentage} indirim uygulanıyor`);
 
   return {
     discounts: [{
-      value: { percentage: { value: matchedRule.discountPercentage.toString() } },
+      value: { percentage: { value: discountPercentage.toString() } },
       message: `Korting`,
       targets,
     }],

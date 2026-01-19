@@ -71,41 +71,56 @@ export function run(input: RunInput): FunctionResult {
   if (!pickupMethod) return emptyReturn;
 
   // ============================================================
-  // MÜŞTERİ TAG İNDİRİMİNİ HESAPLA
-  // Pickup indirimi, tag indirimi uygulandıktan sonraki fiyat üzerinden hesaplanmalı
+  // MÜŞTERİ İNDİRİMİNİ HESAPLA (HYBRID SİSTEM)
+  // Öncelik 1: Customer metafield (yeni sistem)
+  // Öncelik 2: Tag bazlı indirim (mevcut sistem)
   // ============================================================
   let tagDiscountPercent = 0;
+  let discountSource = "";
 
   const customer = cart.buyerIdentity?.customer;
   console.error('🔍 Customer:', customer?.id || 'YOK');
-  console.error('🔍 HasTags:', JSON.stringify(customer?.hasTags || []));
 
   if (customer?.id) {
-    const activeTags = (customer.hasTags || [])
-      .filter((t: any) => t.hasTag)
-      .map((t: any) => t.tag.toLowerCase());
+    // ÖNCELİK 1: Customer metafield kontrolü
+    const customerMetafieldValue = (customer as any).discountPercentage?.value;
+    if (customerMetafieldValue) {
+      const metafieldPercent = parseFloat(customerMetafieldValue);
+      if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
+        tagDiscountPercent = metafieldPercent;
+        discountSource = "metafield";
+        console.error('🎯 METAFIELD İNDİRİMİ: %' + tagDiscountPercent);
+      }
+    }
 
-    console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
+    // ÖNCELİK 2: Tag bazlı indirim (metafield yoksa)
+    if (tagDiscountPercent === 0) {
+      const activeTags = (customer.hasTags || [])
+        .filter((t: any) => t.hasTag)
+        .map((t: any) => t.tag.toLowerCase());
 
-    const rulesJson = input.shop?.customerTagDiscountRules?.value;
-    console.error('🔍 Rules JSON:', rulesJson ? 'VAR' : 'YOK');
+      console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
 
-    if (rulesJson) {
-      try {
-        const rules: CustomerTagRule[] = JSON.parse(rulesJson);
-        console.error('🔍 Rules count:', rules.length);
-        for (const rule of rules) {
-          if (!rule.enabled) continue;
-          console.error('🔍 Checking rule:', rule.customerTag, '-> %' + rule.discountPercentage);
-          if (activeTags.includes(rule.customerTag.toLowerCase())) {
-            if (rule.discountPercentage > tagDiscountPercent) {
-              tagDiscountPercent = rule.discountPercentage;
-              console.error('✅ Matched! Tag discount:', tagDiscountPercent);
+      const rulesJson = input.shop?.customerTagDiscountRules?.value;
+
+      if (rulesJson && activeTags.length > 0) {
+        try {
+          const rules: CustomerTagRule[] = JSON.parse(rulesJson);
+          for (const rule of rules) {
+            if (!rule.enabled) continue;
+            if (activeTags.includes(rule.customerTag.toLowerCase())) {
+              if (rule.discountPercentage > tagDiscountPercent) {
+                tagDiscountPercent = rule.discountPercentage;
+                discountSource = `tag:${rule.customerTag}`;
+              }
             }
           }
+          if (tagDiscountPercent > 0) {
+            console.error('🎯 TAG İNDİRİMİ: %' + tagDiscountPercent + ' (' + discountSource + ')');
+          }
+        } catch (e) {
+          console.error('❌ JSON parse error');
         }
-      } catch (e) {
-        console.error('❌ JSON parse error');
       }
     }
   }
