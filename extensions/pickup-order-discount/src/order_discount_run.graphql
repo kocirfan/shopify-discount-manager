@@ -22,7 +22,7 @@ query Input {
       customer {
         id
         # Müşteri metafield'ı - öncelikli indirim kaynağı
-        discountPercentage: metafield(namespace: "customer_discount", key: "percentage") {
+        discountPercentage: metafield(namespace: "custom.customer_discount", key: "percentage") {
           value
         }
         # Mevcut tag sistemi - fallback
