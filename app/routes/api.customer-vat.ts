@@ -117,18 +117,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
  * Format: "VAT: NL805263329B01" veya "VAT:NL805263329B01"
  */
 function parseVatFromNotes(notes: string | null): string | null {
-  if (!notes) return null;
+  if (!notes || notes.trim() === '') return null;
 
   // VAT: ile başlayan satırı bul
   const vatMatch = notes.match(/VAT:\s*([A-Z]{2}[A-Z0-9]+)/i);
   if (vatMatch && vatMatch[1]) {
-    return vatMatch[1].toUpperCase();
+    const vat = vatMatch[1].toUpperCase();
+    // N/A veya geçersiz değerleri filtrele
+    if (vat === 'N/A' || vat === 'NA' || vat.length < 8) {
+      return null;
+    }
+    return vat;
   }
 
   // BTW: ile de dene (Hollandaca)
   const btwMatch = notes.match(/BTW:\s*([A-Z]{2}[A-Z0-9]+)/i);
   if (btwMatch && btwMatch[1]) {
-    return btwMatch[1].toUpperCase();
+    const vat = btwMatch[1].toUpperCase();
+    // N/A veya geçersiz değerleri filtrele
+    if (vat === 'N/A' || vat === 'NA' || vat.length < 8) {
+      return null;
+    }
+    return vat;
   }
 
   return null;
