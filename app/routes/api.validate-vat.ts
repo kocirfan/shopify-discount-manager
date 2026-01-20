@@ -1,5 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "react-router";
 
 // VIES VAT Validation API
 // Avrupa Komisyonu'nun resmi VAT doğrulama servisi
@@ -10,14 +9,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // CORS headers
   const headers = {
+    "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
 
   if (!vatNumber) {
-    return json(
-      { valid: false, error: "VAT number is required" },
+    return new Response(
+      JSON.stringify({ valid: false, error: "VAT number is required" }),
       { status: 400, headers }
     );
   }
@@ -30,8 +30,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const vatNumberOnly = cleanVat.substring(2);
 
   if (!countryCode || !vatNumberOnly) {
-    return json(
-      { valid: false, error: "Invalid VAT format. Use format: NL123456789B01" },
+    return new Response(
+      JSON.stringify({ valid: false, error: "Invalid VAT format. Use format: NL123456789B01" }),
       { status: 400, headers }
     );
   }
@@ -58,14 +58,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.log("[VAT Validation] VIES unavailable, using format validation");
       // VIES API'si çalışmıyor - fallback olarak format kontrolü yap
       const formatValid = validateVATFormat(cleanVat);
-      return json(
-        {
+      return new Response(
+        JSON.stringify({
           valid: formatValid,
           viesAvailable: false,
           message: "VIES service unavailable, format validation only",
           countryCode: countryCode,
           vatNumber: vatNumberOnly,
-        },
+        }),
         { headers }
       );
     }
@@ -74,8 +74,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     console.log(`[VAT Validation] VIES Response: valid=${viesData.valid}, name=${viesData.name}`);
 
-    return json(
-      {
+    return new Response(
+      JSON.stringify({
         valid: viesData.valid === true,
         viesAvailable: true,
         countryCode: countryCode,
@@ -83,7 +83,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         name: viesData.name || null,
         address: viesData.address || null,
         requestDate: viesData.requestDate || new Date().toISOString(),
-      },
+      }),
       { headers }
     );
   } catch (error) {
@@ -91,13 +91,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Hata durumunda format kontrolü yap
     const formatValid = validateVATFormat(cleanVat);
-    return json(
-      {
+    return new Response(
+      JSON.stringify({
         valid: formatValid,
         viesAvailable: false,
         message: "VIES service error, format validation only",
         error: error instanceof Error ? error.message : "Unknown error",
-      },
+      }),
       { headers }
     );
   }
