@@ -79,7 +79,7 @@ export function run(input: RunInput): FunctionResult {
   let discountSource = "";
 
   const customer = cart.buyerIdentity?.customer;
-  console.error('🔍 Customer:', customer?.id || 'YOK');
+  //console.error('🔍 Customer:', customer?.id || 'YOK');
 
   if (customer?.id) {
     // ÖNCELİK 1: Customer metafield kontrolü
@@ -89,7 +89,7 @@ export function run(input: RunInput): FunctionResult {
       if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
         tagDiscountPercent = metafieldPercent;
         discountSource = "metafield";
-        console.error('🎯 METAFIELD İNDİRİMİ: %' + tagDiscountPercent);
+        //console.error('🎯 METAFIELD İNDİRİMİ: %' + tagDiscountPercent);
       }
     }
 
@@ -99,7 +99,7 @@ export function run(input: RunInput): FunctionResult {
         .filter((t: any) => t.hasTag)
         .map((t: any) => t.tag.toLowerCase());
 
-      console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
+      //console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
 
       const rulesJson = input.shop?.customerTagDiscountRules?.value;
 
@@ -116,10 +116,10 @@ export function run(input: RunInput): FunctionResult {
             }
           }
           if (tagDiscountPercent > 0) {
-            console.error('🎯 TAG İNDİRİMİ: %' + tagDiscountPercent + ' (' + discountSource + ')');
+            //console.error('🎯 TAG İNDİRİMİ: %' + tagDiscountPercent + ' (' + discountSource + ')');
           }
         } catch (e) {
-          console.error('❌ JSON parse error');
+          //console.error('❌ JSON parse error');
         }
       }
     }
@@ -138,11 +138,11 @@ export function run(input: RunInput): FunctionResult {
   const pickupDiscountPercent = pickupMethod.discountValue;
   const pickupDiscountAmount = (afterTagDiscount * (pickupDiscountPercent / 100)).toFixed(2);
 
-  console.error('📊 Pickup İndirim Hesabı:');
-  console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
-  console.error('   Tag indirimi: %' + tagDiscountPercent);
-  console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
-  console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
+  //console.error('📊 Pickup İndirim Hesabı:');
+  //console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
+  //console.error('   Tag indirimi: %' + tagDiscountPercent);
+  //console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
+  //console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
 
   return {
     discounts: [

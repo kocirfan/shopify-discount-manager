@@ -31,8 +31,8 @@ interface RunInput {
 }
 
 export function run(input: RunInput): FunctionResult {
-  console.error("=== CUSTOMER TAG DISCOUNT (ORDER LEVEL - DEPRECATED) ===");
-  console.error("Bu extension devre dışı. 'customer-tag-product-discount' kullanın.");
+  //console.error("=== CUSTOMER TAG DISCOUNT (ORDER LEVEL - DEPRECATED) ===");
+  //console.error("Bu extension devre dışı. 'customer-tag-product-discount' kullanın.");
 
   // Bu extension artık kullanılmıyor - her zaman boş döndür
   return {

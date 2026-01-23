@@ -36,7 +36,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
-  console.log(`[VAT Validation] Checking: ${countryCode} - ${vatNumberOnly}`);
+  //console.log(`[VAT Validation] Checking: ${countryCode} - ${vatNumberOnly}`);
 
   try {
     // VIES API'ye istek at
@@ -55,7 +55,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
 
     if (!viesResponse.ok) {
-      console.log("[VAT Validation] VIES unavailable, using format validation");
+      //console.log("[VAT Validation] VIES unavailable, using format validation");
       // VIES API'si çalışmıyor - fallback olarak format kontrolü yap
       const formatValid = validateVATFormat(cleanVat);
       return new Response(
@@ -72,7 +72,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const viesData = await viesResponse.json();
 
-    console.log(`[VAT Validation] VIES Response: valid=${viesData.valid}, name=${viesData.name}`);
+    //console.log(`[VAT Validation] VIES Response: valid=${viesData.valid}, name=${viesData.name}`);
 
     return new Response(
       JSON.stringify({
@@ -87,7 +87,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       { headers }
     );
   } catch (error) {
-    console.error("[VAT Validation] Error:", error);
+    //console.error("[VAT Validation] Error:", error);
 
     // Hata durumunda format kontrolü yap
     const formatValid = validateVATFormat(cleanVat);

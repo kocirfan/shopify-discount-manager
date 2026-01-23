@@ -24,7 +24,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const customerId = url.searchParams.get("customer_id");
   const shop = url.searchParams.get("shop");
 
-  console.log("[Customer VAT API] Request:", { customerId, shop });
+  ////console.log("[Customer VAT API] Request:", { customerId, shop });
 
   if (!shop) {
     return new Response(
@@ -45,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const result = await unauthenticated.admin(shop);
     admin = result.admin;
   } catch (error) {
-    console.error("[Customer VAT API] Admin session error:", error);
+    //console.error("[Customer VAT API] Admin session error:", error);
     return new Response(
       JSON.stringify({ success: false, error: "Store connection failed", vat: null }),
       { headers }
@@ -73,21 +73,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const customer = customerData.data?.customer;
 
     if (!customer) {
-      console.log("[Customer VAT API] Customer not found");
+      //console.log("[Customer VAT API] Customer not found");
       return new Response(
         JSON.stringify({ success: false, error: "Customer not found", vat: null }),
         { headers }
       );
     }
 
-    console.log("[Customer VAT API] Customer note:", customer.note);
+    //console.log("[Customer VAT API] Customer note:", customer.note);
 
     // Notes'tan VAT numarasını parse et
     const vat = parseVatFromNotes(customer.note);
     const code = parseCodeFromNotes(customer.note);
     const exactOnlineId = parseExactOnlineIdFromNotes(customer.note);
 
-    console.log("[Customer VAT API] Parsed VAT:", vat);
+    //console.log("[Customer VAT API] Parsed VAT:", vat);
 
     return new Response(
       JSON.stringify({
@@ -103,7 +103,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("[Customer VAT API] Error:", errorMessage);
+    //console.error("[Customer VAT API] Error:", errorMessage);
 
     return new Response(
       JSON.stringify({ success: false, error: errorMessage, vat: null }),

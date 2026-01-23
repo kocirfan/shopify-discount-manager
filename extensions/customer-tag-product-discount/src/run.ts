@@ -60,7 +60,7 @@ interface RunInput {
 }
 
 export function run(input: RunInput): FunctionResult {
-  console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
+  //console.error("=== CUSTOMER TAG PRODUCT DISCOUNT START ===");
 
   const emptyReturn: FunctionResult = {
     discounts: [],
@@ -77,8 +77,8 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  console.error("✅ Müşteri giriş yapmış:", customer.id);
-  console.error("   E-posta:", customer.email || "(yok)");
+  //console.error("✅ Müşteri giriş yapmış:", customer.id);
+  //console.error("   E-posta:", customer.email || "(yok)");
 
   // ============================================================
   // ÖNCELİK 1: MÜŞTERİ METAFIELD KONTROLÜ (YENİ SİSTEM)
@@ -94,7 +94,7 @@ export function run(input: RunInput): FunctionResult {
     if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
       discountPercentage = metafieldPercent;
       discountSource = "metafield";
-      console.error(`🎯 METAFIELD İNDİRİMİ: %${discountPercentage}`);
+      //console.error(`🎯 METAFIELD İNDİRİMİ: %${discountPercentage}`);
     }
   }
 
@@ -107,7 +107,7 @@ export function run(input: RunInput): FunctionResult {
       .filter((t) => t.hasTag)
       .map((t) => t.tag.toLowerCase());
 
-    console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
+    //console.error("🏷️ Müşteri tag'leri:", activeTags.join(", ") || "(hiç tag yok)");
 
     if (activeTags.length === 0) {
       return emptyReturn;
@@ -141,13 +141,13 @@ export function run(input: RunInput): FunctionResult {
     }
 
     if (!matchedRule) {
-      console.error("❌ EŞLEŞME YOK - activeTags:", activeTags);
+      //console.error("❌ EŞLEŞME YOK - activeTags:", activeTags);
       return emptyReturn;
     }
 
     discountPercentage = matchedRule.discountPercentage;
     discountSource = `tag:${matchedRule.customerTag}`;
-    console.error(`🎯 TAG İNDİRİMİ: ${matchedRule.customerTag} -> %${discountPercentage}`);
+    //console.error(`🎯 TAG İNDİRİMİ: ${matchedRule.customerTag} -> %${discountPercentage}`);
   }
 
   // İndirim yüzdesi bulunamadıysa çık
@@ -155,7 +155,7 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  console.error(`💰 Uygulanacak indirim: %${discountPercentage} (kaynak: ${discountSource})`);
+  //console.error(`💰 Uygulanacak indirim: %${discountPercentage} (kaynak: ${discountSource})`);
 
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
@@ -165,16 +165,16 @@ export function run(input: RunInput): FunctionResult {
   for (const line of input.cart.lines) {
     if (line.merchandise.__typename === "ProductVariant" && line.merchandise.id) {
       targets.push({ productVariant: { id: line.merchandise.id } });
-      //console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
+      ////console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
     }
   }
 
   if (targets.length === 0) {
-    //console.error("❌ Ürün bulunamadı");
+    ////console.error("❌ Ürün bulunamadı");
     return emptyReturn;
   }
 
-  console.error(`✅ ${targets.length} ürüne %${discountPercentage} indirim uygulanıyor`);
+  //console.error(`✅ ${targets.length} ürüne %${discountPercentage} indirim uygulanıyor`);
 
   return {
     discounts: [{

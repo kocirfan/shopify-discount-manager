@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('VAT validation error:', error);
+    //console.error('VAT validation error:', error);
 
     // Hata durumunda format kontrolü yap
     const vatNumber = req.query.vat || req.body?.vat;

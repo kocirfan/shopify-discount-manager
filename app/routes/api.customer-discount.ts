@@ -22,7 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const customerId = url.searchParams.get("logged_in_customer_id");
   const shop = url.searchParams.get("shop");
 
-  console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
+  //console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
 
   if (!shop) {
     return new Response(
@@ -52,7 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const result = await unauthenticated.admin(shop);
     admin = result.admin;
   } catch (error) {
-    console.error("[Customer Discount API] Admin session error:", error);
+    //console.error("[Customer Discount API] Admin session error:", error);
     return new Response(
       JSON.stringify({
         discountPercentage: 0,
@@ -155,7 +155,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Customer discount API error:", errorMessage);
+    //console.error("Customer discount API error:", errorMessage);
 
     // Scope hatası mı kontrol et
     if (errorMessage.includes("read_customers") || errorMessage.includes("Access denied")) {
