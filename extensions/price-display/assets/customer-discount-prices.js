@@ -42,10 +42,10 @@
       const data = await response.json();
       customerDiscount = data;
       lastFetch = now;
-      console.log('[CDP] Müşteri indirimi:', data);
+      //console.log('[CDP] Müşteri indirimi:', data);
       return data;
     } catch (error) {
-      console.error('[CDP] İndirim bilgisi alınamadı:', error);
+      //console.error('[CDP] İndirim bilgisi alınamadı:', error);
       return { discountPercentage: 0 };
     }
   }
@@ -115,11 +115,11 @@
     const discount = await fetchCustomerDiscount();
 
     if (!discount || discount.discountPercentage <= 0) {
-      console.log('[CDP] İndirim yok veya müşteri giriş yapmamış');
+      //console.log('[CDP] İndirim yok veya müşteri giriş yapmamış');
       return;
     }
 
-    console.log('[CDP] Fiyatlar güncelleniyor...', discount.discountPercentage + '%');
+    //console.log('[CDP] Fiyatlar güncelleniyor...', discount.discountPercentage + '%');
 
     // Fiyat elementlerini bul - theme'e özel selector'lar
     const selectors = [
@@ -134,7 +134,7 @@
 
     priceElements.forEach(el => updatePriceElement(el, discount.discountPercentage));
 
-    console.log('[CDP]', priceElements.length, 'fiyat elementi güncellendi');
+    //console.log('[CDP]', priceElements.length, 'fiyat elementi güncellendi');
   }
 
   /**
@@ -168,7 +168,7 @@
 
   // Başlat
   function init() {
-    console.log('[CDP] Customer Discount Price Display başlatılıyor...');
+    //console.log('[CDP] Customer Discount Price Display başlatılıyor...');
     addStyles();
     updateAllPrices();
     observeDOMChanges();
