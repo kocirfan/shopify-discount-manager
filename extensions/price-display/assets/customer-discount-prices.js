@@ -51,17 +51,17 @@
   }
 
   /**
-   * Fiyat metninden sayısal değer çıkar (€204,00 -> 204.00)
+   * Fiyat metninden sayısal değer çıkar (€1.438,00 -> 1438.00)
    */
   function extractPrice(text) {
     if (!text) return null;
 
-    // Sadece rakamları ve virgülü al (€204,00 -> "204,00")
-    const match = text.match(/(\d+),(\d{2})/);
-    if (match) {
-      return parseFloat(match[1] + '.' + match[2]);
-    }
-    return null;
+    // Binlik ayırıcı noktaları kaldır, virgülü noktaya çevir
+    // €1.438,00 -> "1438.00"
+    const cleaned = text.replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.');
+    const value = parseFloat(cleaned);
+
+    return (!isNaN(value) && value > 0) ? value : null;
   }
 
   /**
