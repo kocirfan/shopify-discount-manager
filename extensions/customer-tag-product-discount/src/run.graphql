@@ -39,7 +39,7 @@ query Input {
           "korting-22", "korting-23", "korting-24", "korting-25", "korting-32",
           "korting-20.1", "korting-23.3", "korting-24.1", "korting-24.9", "korting-26.5",
           "korting-28.1", "korting-28.9", "korting-29.7", "korting-30.5", "korting-31.3",
-          "korting-32.1", "korting-32.9", "korting-34.5", "korting-36.1", "korting-45.5",
+          "korting-32.1", "korting-32.9", "korting-34.5", "korting-35.3", "korting-36.1", "korting-45.5",
           "vip", "wholesale", "premium", "gold", "silver", "bronze",
           "partner", "employee", "reseller", "b2b"
         ]) {
