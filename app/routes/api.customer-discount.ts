@@ -64,13 +64,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   try {
-    // Müşteri bilgilerini ve tag'lerini al
+    // Müşteri bilgilerini, metafield'larını ve tag'lerini al
     const customerResponse = await admin.graphql(
       `#graphql
-        query GetCustomerTags($customerId: ID!) {
+        query GetCustomerDiscount($customerId: ID!) {
           customer(id: $customerId) {
             id
             tags
+            exactDiscountCode: metafield(namespace: "custom", key: "exact_discount_code") {
+              value
+            }
+            legacyDiscountPercentage: metafield(namespace: "custom.customer_discount", key: "percentage") {
+              value
+            }
           }
         }
       `,
@@ -92,9 +98,46 @@ export async function loader({ request }: LoaderFunctionArgs) {
       );
     }
 
+    // ÖNCELİK 1: exact_discount_code metafield (örn. "korting-20.1" → 20.1)
+    const exactDiscountCode: string | null = customer.exactDiscountCode?.value ?? null;
+    if (exactDiscountCode) {
+      const match = exactDiscountCode.match(/^korting-(.+)$/i);
+      if (match) {
+        const parsed = parseFloat(match[1]);
+        if (!isNaN(parsed) && parsed > 0) {
+          return new Response(
+            JSON.stringify({
+              discountPercentage: parsed,
+              discountName: `Korting`,
+              customerTag: null,
+              allTags: customer.tags,
+            }),
+            { headers }
+          );
+        }
+      }
+    }
+
+    // ÖNCELİK 2: legacy metafield (custom.customer_discount.percentage)
+    const legacyValue: string | null = customer.legacyDiscountPercentage?.value ?? null;
+    if (legacyValue) {
+      const parsed = parseFloat(legacyValue);
+      if (!isNaN(parsed) && parsed > 0) {
+        return new Response(
+          JSON.stringify({
+            discountPercentage: parsed,
+            discountName: `Korting`,
+            customerTag: null,
+            allTags: customer.tags,
+          }),
+          { headers }
+        );
+      }
+    }
+
+    // ÖNCELİK 3: Tag sistemi (mevcut fallback)
     const customerTags = (customer.tags || []).map((t: string) => t.toLowerCase());
-    
-    // İndirim kurallarını metafield'dan al
+
     const shopResponse = await admin.graphql(
       `#graphql
         query GetDiscountRules {
@@ -109,29 +152,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       `
     );
-    
+
     const shopData = await shopResponse.json();
     const rulesJson = shopData.data?.shop?.customerTagDiscountRules?.value;
-    
+
     if (!rulesJson) {
       return new Response(
-        JSON.stringify({ 
-          discountPercentage: 0, 
+        JSON.stringify({
+          discountPercentage: 0,
           discountName: null,
           customerTag: null,
-          message: "İndirim kuralları tanımlanmamış" 
+          message: "İndirim kuralları tanımlanmamış"
         }),
         { headers }
       );
     }
-    
-    // Kuralları parse et ve en yüksek indirimi bul
+
     const rules = JSON.parse(rulesJson);
     let bestMatch = { discountPercentage: 0, discountName: "", customerTag: "" };
-    
+
     for (const rule of rules) {
       if (!rule.enabled) continue;
-      
       if (customerTags.includes(rule.customerTag.toLowerCase())) {
         if (rule.discountPercentage > bestMatch.discountPercentage) {
           bestMatch = {
@@ -142,7 +183,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       }
     }
-    
+
     return new Response(
       JSON.stringify({
         discountPercentage: bestMatch.discountPercentage,
