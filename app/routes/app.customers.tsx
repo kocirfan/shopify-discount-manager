@@ -151,44 +151,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   // "korting-" prefix'i ile yeni kod oluştur
   const newCode = `korting-${newRate.trim()}`;
 
-  // Önce mevcut metafield ID'sini al
-  const getResponse = await admin.graphql(
+  // Her zaman metafieldsSet kullan (hem create hem update için çalışır)
+  const mutResponse = await admin.graphql(
     `#graphql
-      query GetCustomerMetafield($id: ID!) {
-        customer(id: $id) {
-          metafield(namespace: "custom", key: "exact_discount_code") {
-            id
-          }
+      mutation SetMetafield($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          metafields { id value }
+          userErrors { field message }
         }
       }
     `,
-    { variables: { id: customerId } }
-  );
-  const getData = await getResponse.json();
-  const metafieldId = getData.data?.customer?.metafield?.id ?? null;
-
-  // Metafield'ı güncelle veya oluştur
-  const mutation = metafieldId
-    ? `#graphql
-        mutation UpdateMetafield($id: ID!, $value: String!) {
-          metafieldUpdate(input: { id: $id, value: $value }) {
-            metafield { id value }
-            userErrors { field message }
-          }
-        }
-      `
-    : `#graphql
-        mutation SetMetafield($metafields: [MetafieldsSetInput!]!) {
-          metafieldsSet(metafields: $metafields) {
-            metafields { id value }
-            userErrors { field message }
-          }
-        }
-      `;
-
-  const variables = metafieldId
-    ? { id: metafieldId, value: newCode }
-    : {
+    {
+      variables: {
         metafields: [
           {
             ownerId: customerId,
@@ -198,15 +172,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             value: newCode,
           },
         ],
-      };
-
-  const mutResponse = await admin.graphql(mutation, { variables });
+      },
+    }
+  );
   const mutData = await mutResponse.json();
 
-  const errors =
-    mutData.data?.metafieldUpdate?.userErrors ||
-    mutData.data?.metafieldsSet?.userErrors ||
-    [];
+  const errors = mutData.data?.metafieldsSet?.userErrors || [];
 
   if (errors.length > 0) {
     return { success: false, message: errors[0].message };
