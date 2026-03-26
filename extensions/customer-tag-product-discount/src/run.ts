@@ -81,20 +81,34 @@ export function run(input: RunInput): FunctionResult {
   //console.error("   E-posta:", customer.email || "(yok)");
 
   // ============================================================
-  // ÖNCELİK 1: MÜŞTERİ METAFIELD KONTROLÜ (YENİ SİSTEM)
-  // Müşterinin customer_discount.percentage metafield'ı varsa,
-  // direkt bu değeri kullan - tag sistemi atlanır
+  // ÖNCELİK 1: exact_discount_code METAFIELD (EN YENİ SİSTEM)
+  // custom.exact_discount_code değeri "korting-20.1" formatında gelir,
+  // "korting-" prefix'inden sonraki sayı indirim oranı olarak kullanılır.
   // ============================================================
-  const customerMetafieldValue = (customer as any).discountPercentage?.value;
+  const exactDiscountCode = (customer as any).exactDiscountCode?.value as string | undefined;
   let discountPercentage = 0;
-  let discountSource = "";
 
-  if (customerMetafieldValue) {
-    const metafieldPercent = parseFloat(customerMetafieldValue);
-    if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
-      discountPercentage = metafieldPercent;
-      discountSource = "metafield";
-      //console.error(`🎯 METAFIELD İNDİRİMİ: %${discountPercentage}`);
+  if (exactDiscountCode) {
+    const match = exactDiscountCode.match(/^korting-(.+)$/i);
+    if (match) {
+      const parsed = parseFloat(match[1]);
+      if (!isNaN(parsed) && parsed > 0) {
+        discountPercentage = parsed;
+      }
+    }
+  }
+
+  // ============================================================
+  // ÖNCELİK 2: MÜŞTERİ METAFIELD KONTROLÜ (ESKİ SİSTEM)
+  // Müşterinin custom.customer_discount.percentage metafield'ı varsa kullan
+  // ============================================================
+  if (discountPercentage === 0) {
+    const customerMetafieldValue = (customer as any).discountPercentage?.value;
+    if (customerMetafieldValue) {
+      const metafieldPercent = parseFloat(customerMetafieldValue);
+      if (!isNaN(metafieldPercent) && metafieldPercent > 0) {
+        discountPercentage = metafieldPercent;
+      }
     }
   }
 
@@ -146,7 +160,6 @@ export function run(input: RunInput): FunctionResult {
     }
 
     discountPercentage = matchedRule.discountPercentage;
-    discountSource = `tag:${matchedRule.customerTag}`;
     //console.error(`🎯 TAG İNDİRİMİ: ${matchedRule.customerTag} -> %${discountPercentage}`);
   }
 

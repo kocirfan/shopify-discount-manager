@@ -24,7 +24,11 @@ query Input {
       customer {
         id
         email
-        # Müşteri metafield'ı - öncelikli indirim kaynağı
+        # YENİ: exact_discount_code metafield'ı - en yüksek öncelik (örn. korting-20.1)
+        exactDiscountCode: metafield(namespace: "custom", key: "exact_discount_code") {
+          value
+        }
+        # Eski metafield - ikinci öncelik
         discountPercentage: metafield(namespace: "custom.customer_discount", key: "percentage") {
           value
         }
