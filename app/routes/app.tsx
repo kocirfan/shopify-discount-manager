@@ -22,6 +22,7 @@ export default function App() {
       <PolarisAppProvider i18n={{}}>
         <s-app-nav>
           <s-link href="/app">Home</s-link>
+          <s-link href="/app/customers">Müşteriler</s-link>
           <s-link href="/app/customer-tag-discounts">Klant Tag Kortingen</s-link>
           <s-link href="/app/cleanup">Opschonen & Debug</s-link>
           <s-link href="/app/additional">Extra Pagina</s-link>
