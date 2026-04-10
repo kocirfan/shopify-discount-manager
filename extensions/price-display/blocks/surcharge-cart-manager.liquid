@@ -6,21 +6,20 @@
   Theme Editor'da Header veya Footer bölümüne eklenmelidir.
 {% endcomment %}
 
-<script id="surcharge-config" type="application/json">
-  {
-    "variantId": {{ block.settings.surcharge_variant_id | json }},
-    "enabled": {{ block.settings.enabled | json }},
-    "percentage": {{ block.settings.percentage | json }},
-    "label": {{ block.settings.label | json }}
-  }
-</script>
+<div
+  id="surcharge-config"
+  data-variant-id="{{ block.settings.surcharge_variant_id | escape }}"
+  data-enabled="{{ block.settings.enabled }}"
+  data-percentage="{{ block.settings.percentage }}"
+  style="display:none;"
+></div>
 
-<script src="{{ 'surcharge-cart-manager.js' | asset_url }}" defer></script>
+<script src="{{ 'surcharge-cart-manager.js' | asset_url }}"></script>
 
 {% schema %}
 {
   "name": "Surcharge Cart Manager",
-  "target": "head",
+  "target": "body",
   "settings": [
     {
       "type": "checkbox",
