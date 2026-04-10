@@ -1,0 +1,53 @@
+{% comment %}
+  Extra Surcharge Cart Manager
+  Bu block, sepet tutarının %X'i kadar bir surcharge ürününü otomatik olarak
+  sepete ekler/günceller/kaldırır. Cart Transform function fiyatı override eder.
+
+  Theme Editor'da Header veya Footer bölümüne eklenmelidir.
+{% endcomment %}
+
+<script id="surcharge-config" type="application/json">
+  {
+    "variantId": {{ block.settings.surcharge_variant_id | json }},
+    "enabled": {{ block.settings.enabled | json }},
+    "percentage": {{ block.settings.percentage | json }},
+    "label": {{ block.settings.label | json }}
+  }
+</script>
+
+<script src="{{ 'surcharge-cart-manager.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Extra Surcharge Cart Manager",
+  "target": "head",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Surcharge aktif",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "surcharge_variant_id",
+      "label": "Surcharge Variant ID (sadece sayı)",
+      "info": "Shopify admin'den surcharge ürününün variant ID'sini girin. Örn: 61571547791690",
+      "default": "61571547791690"
+    },
+    {
+      "type": "number",
+      "id": "percentage",
+      "label": "Yüzde (%)",
+      "default": 7,
+      "info": "Sepet toplamının yüzde kaçı surcharge olarak eklenecek. Örn: 7 → %7"
+    },
+    {
+      "type": "text",
+      "id": "label",
+      "label": "Surcharge açıklaması",
+      "default": "Service toeslag"
+    }
+  ]
+}
+{% endschema %}
