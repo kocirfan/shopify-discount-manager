@@ -1,30 +1,20 @@
 /**
  * Surcharge Cart Manager
- *
- * Sepet her değiştiğinde çalışır:
- *  - Surcharge ürünü sepette yoksa → qty=1 ile ekler (Cart Transform fiyatı override eder)
- *  - Sepet boşsa → surcharge ürününü kaldırır
  */
 
 (function () {
   "use strict";
 
-  // Config'i data attribute'lardan oku
   function getConfig() {
     const el = document.getElementById("surcharge-config");
     if (!el) return null;
     const variantId = el.getAttribute("data-variant-id");
-    const enabled = el.getAttribute("data-enabled");
-    const percentage = el.getAttribute("data-percentage");
     if (!variantId) return null;
     return {
       variantId: variantId,
-      enabled: enabled !== "false",
-      percentage: parseFloat(percentage) || 7,
+      enabled: el.getAttribute("data-enabled") !== "false",
     };
   }
-
-  // ─── Shopify Cart API ──────────────────────────────────────────────────────
 
   async function fetchCart() {
     const res = await fetch("/cart.js");
@@ -32,7 +22,7 @@
   }
 
   async function addItem(variantId) {
-    console.log("[Surcharge] Sepete ekleniyor, variantId:", variantId);
+    console.log("[Surcharge] Ekleniyor:", variantId);
     const res = await fetch("/cart/add.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,7 +34,7 @@
   }
 
   async function removeItem(lineKey) {
-    console.log("[Surcharge] Sepetten kaldırılıyor, key:", lineKey);
+    console.log("[Surcharge] Kaldırılıyor:", lineKey);
     const res = await fetch("/cart/change.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,104 +43,89 @@
     return res.json();
   }
 
-  async function setItemQty(lineKey, quantity) {
-    const res = await fetch("/cart/change.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: lineKey, quantity }),
-    });
-    return res.json();
-  }
-
-  // ─── Ana mantık ───────────────────────────────────────────────────────────
-
-  let isRunning = false;
+  // Surcharge kendi fetch'lerini tetiklememeye yarar
+  let _surchargeActive = false;
+  let _syncQueued = false;
 
   async function syncSurcharge() {
-    if (isRunning) return;
+    if (_surchargeActive) {
+      _syncQueued = true;
+      return;
+    }
 
     const config = getConfig();
     if (!config) {
-      console.warn("[Surcharge] #surcharge-config elementi bulunamadı.");
+      console.warn("[Surcharge] config bulunamadı");
       return;
     }
     if (!config.enabled) return;
 
-    isRunning = true;
-    console.log("[Surcharge] syncSurcharge çalışıyor, variantId:", config.variantId);
+    _surchargeActive = true;
+    console.log("[Surcharge] Senkronize ediliyor...");
 
     try {
       const cart = await fetchCart();
       const lines = cart.items || [];
-
       const VARIANT_ID = String(config.variantId);
 
-      // Surcharge line'ı bul
-      const surchargeLine = lines.find(
-        (item) => String(item.variant_id) === VARIANT_ID
-      );
+      const surchargeLine = lines.find((item) => String(item.variant_id) === VARIANT_ID);
+      const realLines = lines.filter((item) => String(item.variant_id) !== VARIANT_ID);
+      const hasRealItems = realLines.some((item) => item.quantity > 0);
 
-      // Surcharge hariç satır var mı?
-      const realLines = lines.filter(
-        (item) => String(item.variant_id) !== VARIANT_ID
-      );
-      const hasRealItems = realLines.length > 0 && realLines.some((item) => item.quantity > 0);
-
-      console.log("[Surcharge] hasRealItems:", hasRealItems, "surchargeLine:", !!surchargeLine);
+      console.log("[Surcharge] hasRealItems:", hasRealItems, "surchargeVar mevcut:", !!surchargeLine);
 
       if (!hasRealItems) {
-        if (surchargeLine) {
-          await removeItem(surchargeLine.key);
-        }
-        return;
-      }
-
-      if (!surchargeLine) {
+        if (surchargeLine) await removeItem(surchargeLine.key);
+      } else if (!surchargeLine) {
         await addItem(VARIANT_ID);
       } else if (surchargeLine.quantity !== 1) {
-        await setItemQty(surchargeLine.key, 1);
+        await removeItem(surchargeLine.key);
+        await addItem(VARIANT_ID);
       }
     } catch (err) {
       console.error("[Surcharge] Hata:", err);
     } finally {
-      isRunning = false;
+      _surchargeActive = false;
+      if (_syncQueued) {
+        _syncQueued = false;
+        setTimeout(syncSurcharge, 300);
+      }
     }
   }
 
-  // ─── Başlat ───────────────────────────────────────────────────────────────
-
-  // Script body'de sync yüklendiği için DOM hazır, hemen çalıştır
+  // ─── İlk çalıştırma ───────────────────────────────────────────────────────
+  console.log("[Surcharge] Script yüklendi");
   syncSurcharge();
 
-  // Shopify custom events (birçok tema bunları fırlatır)
+  // ─── Event dinleyicileri ──────────────────────────────────────────────────
   document.addEventListener("cart:updated", syncSurcharge);
   document.addEventListener("cart:refresh", syncSurcharge);
 
-  // fetch monkey-patch: /cart/add veya /cart/change sonrası tetikle
-  const _fetch = window.fetch;
+  // fetch monkey-patch — kendi fetch'lerimizi atla
+  const _origFetch = window.fetch;
   window.fetch = async function (...args) {
-    const result = await _fetch.apply(this, args);
+    const result = await _origFetch.apply(this, args);
+    if (_surchargeActive) return result;
+
     const url = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "";
-    if (
-      (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) &&
-      !url.includes("/cart/add.js") === false // sadece dış tetikleyicilerde çalış, kendi add'imizde çalışma
-    ) {
+    if (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) {
       setTimeout(syncSurcharge, 300);
     }
     return result;
   };
 
   // XHR monkey-patch
-  const _open = XMLHttpRequest.prototype.open;
-  const _send = XMLHttpRequest.prototype.send;
+  const _origOpen = XMLHttpRequest.prototype.open;
+  const _origSend = XMLHttpRequest.prototype.send;
 
-  XMLHttpRequest.prototype.open = function (_method, url) {
+  XMLHttpRequest.prototype.open = function (_m, url) {
     this._surchUrl = url;
-    return _open.apply(this, arguments);
+    return _origOpen.apply(this, arguments);
   };
 
   XMLHttpRequest.prototype.send = function () {
     if (
+      !_surchargeActive &&
       this._surchUrl &&
       (this._surchUrl.includes("/cart/add") ||
         this._surchUrl.includes("/cart/change") ||
@@ -160,6 +135,6 @@
         setTimeout(syncSurcharge, 300);
       });
     }
-    return _send.apply(this, arguments);
+    return _origSend.apply(this, arguments);
   };
 })();
