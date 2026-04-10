@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
 import { useLoaderData, useSubmit, useActionData } from "react-router";
 import {
@@ -282,6 +282,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // UI
 // ============================================================
 export default function ExtraChargePage() {
+  useEffect(() => {
+    console.log("burada");
+  }, []);
+
   const { settings, isCartTransformActive, cartTransformId } =
     useLoaderData<LoaderData>();
   const actionData = useActionData<{
