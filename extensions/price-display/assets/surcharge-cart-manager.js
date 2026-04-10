@@ -1,7 +1,7 @@
 /**
  * Surcharge Cart Manager
- * Sepet toplamının %7'si kadar surcharge ürününü sepete ekler/günceller/kaldırır.
- * Fiyat /cart/add.js'e "price" parametresiyle geçilir (Storefront API price override).
+ * Sepet toplamının %7'si → App Proxy'ye gönderir → backend variant fiyatını günceller
+ * → surcharge ürününü güncel fiyatla sepete ekler.
  */
 (function () {
   "use strict";
@@ -23,24 +23,35 @@
     return res.json();
   }
 
-  // Shopify Storefront Cart API — price (cents) ile fiyat override
-  async function addWithPrice(variantId, priceCents) {
+  async function addItem(variantId) {
     const res = await fetch("/cart/add.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: [{ id: Number(variantId), quantity: 1, price: priceCents }],
-      }),
+      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
     });
     return res.json();
   }
 
-  async function updateLine(lineKey, quantity) {
+  async function removeLine(lineKey) {
     const res = await fetch("/cart/change.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: lineKey, quantity }),
+      body: JSON.stringify({ id: lineKey, quantity: 0 }),
     });
+    return res.json();
+  }
+
+  // App Proxy üzerinden backend'e sepet toplamını gönder, variant fiyatını güncellettir
+  async function updateSurchargePrice(cartTotalEur) {
+    const shop = window.Shopify && window.Shopify.shop;
+    const res = await fetch(
+      `/apps/discount-manager/api/surcharge-price?shop=${encodeURIComponent(shop || "")}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartTotal: cartTotalEur }),
+      }
+    );
     return res.json();
   }
 
@@ -54,68 +65,83 @@
     if (!config || !config.enabled) return;
 
     _busy = true;
+    console.log("[Surcharge] sync başladı");
+
     try {
       const cart = await getCart();
       const lines = cart.items || [];
       const VARIANT_ID = String(config.variantId);
 
-      const surcharge = lines.find((l) => String(l.variant_id) === VARIANT_ID);
+      const surchargeLine = lines.find((l) => String(l.variant_id) === VARIANT_ID);
       const realLines = lines.filter((l) => String(l.variant_id) !== VARIANT_ID);
 
-      // Sepet toplamı (kuruş — Shopify tüm fiyatları kuruş olarak döner)
+      // Sepet toplamı EUR (Shopify cents → EUR)
       const totalCents = realLines.reduce((sum, l) => sum + l.line_price, 0);
+      const totalEur = totalCents / 100;
 
-      console.log("[Surcharge] totalCents:", totalCents, "surchargeExists:", !!surcharge);
+      console.log("[Surcharge] totalEur:", totalEur);
 
-      if (totalCents <= 0) {
-        if (surcharge) await updateLine(surcharge.key, 0);
+      if (totalEur <= 0) {
+        if (surchargeLine) await removeLine(surchargeLine.key);
         return;
       }
 
-      // %7 → kuruş, en az 1 kuruş
-      const surchargeCents = Math.max(1, Math.round(totalCents * (config.percentage / 100)));
-      console.log("[Surcharge] surchargeCents:", surchargeCents);
+      // Backend'e gönder — variant fiyatını güncellettir
+      const result = await updateSurchargePrice(totalEur);
+      console.log("[Surcharge] backend sonucu:", result);
 
-      if (surcharge) {
-        // Fiyat yanlışsa → kaldır ve yeniden ekle
-        if (surcharge.price !== surchargeCents || surcharge.quantity !== 1) {
-          await updateLine(surcharge.key, 0);
-          await addWithPrice(VARIANT_ID, surchargeCents);
+      if (result.error || !result.price) {
+        console.error("[Surcharge] fiyat alınamadı:", result.error);
+        return;
+      }
+
+      const expectedPriceCents = Math.round(result.price * 100);
+
+      if (surchargeLine) {
+        // Fiyat değiştiyse → kaldır ve tekrar ekle (variant fiyatı güncellendi)
+        if (surchargeLine.price !== expectedPriceCents || surchargeLine.quantity !== 1) {
+          await removeLine(surchargeLine.key);
+          // Kısa bekleme — Shopify variant fiyat güncellemesinin yayılması için
+          await new Promise((r) => setTimeout(r, 800));
+          await addItem(VARIANT_ID);
         }
       } else {
-        await addWithPrice(VARIANT_ID, surchargeCents);
+        await new Promise((r) => setTimeout(r, 800));
+        await addItem(VARIANT_ID);
       }
+
+      console.log("[Surcharge] tamamlandı, fiyat:", result.price);
     } catch (e) {
-      console.error("[Surcharge] Hata:", e);
+      console.error("[Surcharge] hata:", e);
     } finally {
       _busy = false;
       if (_pending) {
         _pending = false;
-        setTimeout(sync, 200);
+        setTimeout(sync, 300);
       }
     }
   }
 
-  // ─── Başlat ──────────────────────────────────────────────────────────────
-  console.log("[Surcharge] Script yüklendi");
+  console.log("[Surcharge] script yüklendi");
   sync();
 
   document.addEventListener("cart:updated", sync);
   document.addEventListener("cart:refresh", sync);
 
-  // fetch patch — kendi isteklerimizi atla
   const _origFetch = window.fetch;
   window.fetch = async function (...args) {
     const result = await _origFetch.apply(this, args);
     if (_busy) return result;
     const url = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "";
-    if (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) {
-      setTimeout(sync, 300);
+    if (
+      (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) &&
+      !url.includes("/apps/")
+    ) {
+      setTimeout(sync, 400);
     }
     return result;
   };
 
-  // XHR patch
   const _origOpen = XMLHttpRequest.prototype.open;
   const _origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (_m, url) {
@@ -124,8 +150,9 @@
   };
   XMLHttpRequest.prototype.send = function () {
     if (!_busy && this._sUrl &&
-      (this._sUrl.includes("/cart/add") || this._sUrl.includes("/cart/change") || this._sUrl.includes("/cart/update"))) {
-      this.addEventListener("load", () => setTimeout(sync, 300));
+      (this._sUrl.includes("/cart/add") || this._sUrl.includes("/cart/change") || this._sUrl.includes("/cart/update")) &&
+      !this._sUrl.includes("/apps/")) {
+      this.addEventListener("load", () => setTimeout(sync, 400));
     }
     return _origSend.apply(this, arguments);
   };
