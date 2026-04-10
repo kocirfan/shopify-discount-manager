@@ -352,7 +352,7 @@ export default function ExtraChargePage() {
             <BlockStack gap="300">
               <InlineStack align="space-between" blockAlign="center">
                 <Text variant="headingMd" as="h2">
-                  Cart Transform Durumu
+                  Cart Transform Durumuuuuuu
                 </Text>
                 <Badge tone={currentlyActive ? "success" : "enabled"}>
                   {currentlyActive ? "Actief" : "Inactief"}
