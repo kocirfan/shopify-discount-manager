@@ -31,30 +31,15 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
 
   const rate = settings.percentage / 100;
 
-  // Sadece ilk line'ı güncelle — test amaçlı
-  const firstLine = input.cart.lines.find(
-    (line) => line.merchandise.__typename === "ProductVariant"
-  );
-  if (!firstLine) return NO_CHANGES;
+  // Sepet toplamını hesapla
+  let cartTotal = 0;
+  for (const line of input.cart.lines) {
+    const price = parseFloat(line.cost.amountPerQuantity.amount as string);
+    if (!isNaN(price)) cartTotal += price * line.quantity;
+  }
+  console.log("[extra-surcharge] Cart total:", cartTotal.toFixed(2));
+  console.log("[extra-surcharge] Surcharge would be:", (cartTotal * rate).toFixed(2));
 
-  const originalPrice = parseFloat(firstLine.cost.amountPerQuantity.amount as string);
-  if (isNaN(originalPrice) || originalPrice <= 0) return NO_CHANGES;
-
-  const newPrice = (originalPrice * (1 + rate)).toFixed(2);
-  console.log("[extra-surcharge] originalPrice:", originalPrice, "newPrice:", newPrice);
-
-  return {
-    operations: [
-      {
-        lineUpdate: {
-          cartLineId: firstLine.id,
-          price: {
-            adjustment: {
-              fixedPricePerUnit: { amount: newPrice },
-            },
-          },
-        },
-      },
-    ],
-  };
+  // CartTransform lineUpdate/lineExpand fiyat artıramaz — şimdilik no-op
+  return NO_CHANGES;
 }
