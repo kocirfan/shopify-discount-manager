@@ -1,7 +1,7 @@
 /**
  * Surcharge Cart Manager
- * Sepet toplamının %7'si → App Proxy'ye gönderir → backend variant fiyatını günceller
- * → surcharge ürününü güncel fiyatla sepete ekler.
+ * 1. Sepet toplamını backend'e gönderir → variant fiyatı güncellenir
+ * 2. Surcharge ürününü sepete ekler (güncel fiyatla)
  */
 (function () {
   "use strict";
@@ -14,7 +14,6 @@
     return {
       variantId: variantId,
       enabled: el.getAttribute("data-enabled") !== "false",
-      percentage: parseFloat(el.getAttribute("data-percentage") || "7") || 7,
     };
   }
 
@@ -41,7 +40,6 @@
     return res.json();
   }
 
-  // App Proxy üzerinden backend'e sepet toplamını gönder, variant fiyatını güncellettir
   async function updateSurchargePrice(cartTotalEur) {
     const shop = window.Shopify && window.Shopify.shop;
     const res = await fetch(
@@ -52,6 +50,7 @@
         body: JSON.stringify({ cartTotal: cartTotalEur }),
       }
     );
+    if (!res.ok) throw new Error("surcharge-price endpoint error: " + res.status);
     return res.json();
   }
 
@@ -74,8 +73,6 @@
 
       const surchargeLine = lines.find((l) => String(l.variant_id) === VARIANT_ID);
       const realLines = lines.filter((l) => String(l.variant_id) !== VARIANT_ID);
-
-      // Sepet toplamı EUR (Shopify cents → EUR)
       const totalCents = realLines.reduce((sum, l) => sum + l.line_price, 0);
       const totalEur = totalCents / 100;
 
@@ -88,29 +85,29 @@
 
       // Backend'e gönder — variant fiyatını güncellettir
       const result = await updateSurchargePrice(totalEur);
-      console.log("[Surcharge] backend sonucu:", result);
+      console.log("[Surcharge] backend:", result);
 
-      if (result.error || !result.price) {
-        console.error("[Surcharge] fiyat alınamadı:", result.error);
+      if (!result.price) {
+        console.error("[Surcharge] fiyat alınamadı");
         return;
       }
 
-      const expectedPriceCents = Math.round(result.price * 100);
+      const expectedCents = Math.round(result.price * 100);
 
-      if (surchargeLine) {
-        // Fiyat değiştiyse → kaldır ve tekrar ekle (variant fiyatı güncellendi)
-        if (surchargeLine.price !== expectedPriceCents || surchargeLine.quantity !== 1) {
-          await removeLine(surchargeLine.key);
-          // Kısa bekleme — Shopify variant fiyat güncellemesinin yayılması için
-          await new Promise((r) => setTimeout(r, 800));
-          await addItem(VARIANT_ID);
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 800));
-        await addItem(VARIANT_ID);
+      // Surcharge sepette varsa ve fiyat doğruysa dokunma
+      if (surchargeLine && surchargeLine.price === expectedCents && surchargeLine.quantity === 1) {
+        console.log("[Surcharge] fiyat zaten doğru, değişiklik yok");
+        return;
       }
 
-      console.log("[Surcharge] tamamlandı, fiyat:", result.price);
+      // Varsa kaldır, sonra güncel fiyatla ekle
+      if (surchargeLine) await removeLine(surchargeLine.key);
+
+      // Variant fiyatının Shopify'a yayılması için kısa bekleme
+      await new Promise((r) => setTimeout(r, 1000));
+      await addItem(VARIANT_ID);
+
+      console.log("[Surcharge] tamamlandı:", result.price);
     } catch (e) {
       console.error("[Surcharge] hata:", e);
     } finally {

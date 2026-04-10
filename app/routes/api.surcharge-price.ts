@@ -80,20 +80,39 @@ export async function action({ request }: ActionFunctionArgs) {
     // 2. Surcharge fiyatını hesapla (2 ondalık)
     const surchargePrice = parseFloat((cartTotal * percentage / 100).toFixed(2));
 
-    // 3. Variant fiyatını güncelle
+    // 3. Variant fiyatını güncelle (2025-10 API)
+    // Önce product ID'yi al
+    const variantRes = await admin.graphql(`#graphql
+      query {
+        productVariant(id: "gid://shopify/ProductVariant/${SURCHARGE_VARIANT_ID}") {
+          id
+          product { id }
+        }
+      }
+    `);
+    const variantData = await variantRes.json();
+    const productId = variantData.data?.productVariant?.product?.id;
+
+    if (!productId) {
+      return new Response(JSON.stringify({ error: "variant/product not found" }), { status: 500, headers: CORS });
+    }
+
     await admin.graphql(`#graphql
-      mutation productVariantUpdate($input: ProductVariantInput!) {
-        productVariantUpdate(input: $input) {
-          productVariant { id price }
+      mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+        productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+          productVariants { id price }
           userErrors { field message }
         }
       }
     `, {
       variables: {
-        input: {
-          id: `gid://shopify/ProductVariant/${SURCHARGE_VARIANT_ID}`,
-          price: String(surchargePrice),
-        },
+        productId,
+        variants: [
+          {
+            id: `gid://shopify/ProductVariant/${SURCHARGE_VARIANT_ID}`,
+            price: String(surchargePrice),
+          },
+        ],
       },
     });
 
