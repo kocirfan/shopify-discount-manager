@@ -12,8 +12,7 @@ interface SurchargeSettings {
 const NO_CHANGES: CartTransformRunResult = { operations: [] };
 
 export function run(input: CartTransformRunInput): CartTransformRunResult {
-  console.log("[extra-surcharge] run() called - TEST MODE");
-  return NO_CHANGES;
+  console.log("[extra-surcharge] run() called");
 
   const settingsJson = input.shop?.surchargeSettings?.value;
   console.log("[extra-surcharge] settingsJson:", settingsJson);
@@ -30,37 +29,32 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
     return NO_CHANGES;
   }
 
-  const cartTotal = input.cart.lines.reduce((sum, line) => {
-    const price = parseFloat(line.cost.amountPerQuantity.amount as string);
-    return sum + (isNaN(price) ? 0 : price * line.quantity);
-  }, 0);
-
-  console.log("[extra-surcharge] Surcharge percentage:", settings.percentage + "%");
-  console.log("[extra-surcharge] Cart total:", cartTotal.toFixed(2));
-
   const rate = settings.percentage / 100;
-  const operations: CartTransformRunResult["operations"] = [];
 
-  for (const line of input.cart.lines) {
-    if (line.merchandise.__typename !== "ProductVariant") continue;
+  // Sadece ilk line'ı güncelle — test amaçlı
+  const firstLine = input.cart.lines.find(
+    (line) => line.merchandise.__typename === "ProductVariant"
+  );
+  if (!firstLine) return NO_CHANGES;
 
-    const originalPrice = parseFloat(line.cost.amountPerQuantity.amount as string);
-    if (isNaN(originalPrice) || originalPrice <= 0) continue;
+  const originalPrice = parseFloat(firstLine.cost.amountPerQuantity.amount as string);
+  if (isNaN(originalPrice) || originalPrice <= 0) return NO_CHANGES;
 
-    // Fiyatı (1 + rate) ile çarp: %5 için 1.05x
-    const newPrice = (originalPrice * (1 + rate)).toFixed(2);
+  const newPrice = (originalPrice * (1 + rate)).toFixed(2);
+  console.log("[extra-surcharge] originalPrice:", originalPrice, "newPrice:", newPrice);
 
-    operations.push({
-      lineUpdate: {
-        cartLineId: line.id,
-        price: {
-          adjustment: {
-            fixedPricePerUnit: { amount: newPrice },
+  return {
+    operations: [
+      {
+        lineUpdate: {
+          cartLineId: firstLine.id,
+          price: {
+            adjustment: {
+              fixedPricePerUnit: { amount: newPrice },
+            },
           },
         },
       },
-    });
-  }
-
-  return operations.length > 0 ? { operations } : NO_CHANGES;
+    ],
+  };
 }
