@@ -3,7 +3,7 @@ api_version = "2025-07"
 [[extensions]]
 name = "Extra Surcharge"
 handle = "extra-surcharge"
-uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+uid = "2009ae03-b390-9bf4-fedb-ae9dbd6cde8b3a9ade62"
 type = "function"
 description = "Apply a configurable percentage surcharge to the cart subtotal"
 

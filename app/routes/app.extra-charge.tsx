@@ -47,7 +47,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let cartTransformId: string | null = null;
 
   try {
-    const response = await admin.graphql(
+    // Ayarları oku
+    const settingsResponse = await admin.graphql(
       `#graphql
         query {
           shop {
@@ -58,6 +59,27 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               value
             }
           }
+        }
+      `
+    );
+    const settingsData = await settingsResponse.json();
+    const savedValue = settingsData.data?.shop?.surchargeSettings?.value;
+    if (savedValue) {
+      try {
+        settings = JSON.parse(savedValue);
+      } catch {
+        // Parse hatası olursa default kullan
+      }
+    }
+  } catch (error) {
+    // Hata olursa default değerlerle devam et
+  }
+
+  try {
+    // Aktif Cart Transform'ları kontrol et
+    const transformsResponse = await admin.graphql(
+      `#graphql
+        query {
           cartTransforms(first: 20) {
             nodes {
               id
@@ -67,31 +89,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         }
       `
     );
+    const transformsData = await transformsResponse.json();
+    const transforms = transformsData.data?.cartTransforms?.nodes || [];
 
-    const data = await response.json();
-
-    // Ayarları oku
-    const savedValue = data.data?.shop?.surchargeSettings?.value;
-    if (savedValue) {
-      try {
-        settings = JSON.parse(savedValue);
-      } catch {
-        // Parse hatası olursa default kullan
-      }
-    }
-
-    // Extra Surcharge cart transform aktif mi kontrol et
-    const transforms = data.data?.cartTransforms?.nodes || [];
     for (const t of transforms) {
-      // functionId içinde handle geçiyorsa bu bizim extension'ımız
+      // functionId içinde extension handle'ı arama
       if (t.functionId && t.functionId.includes("extra-surcharge")) {
         isCartTransformActive = true;
         cartTransformId = t.id;
         break;
       }
     }
+
+    // functionId ile bulunamazsa: tüm aktif transform'ları listele
+    // ve title/handle bilgisi yoksa en azından var olduğunu say
+    // (ilk deploy sonrası functionId formatı netleşince burada güncellenebilir)
   } catch (error) {
-    // Hata olursa default değerlerle devam et
+    // Hata olursa inactive kabul et
   }
 
   return { settings, isCartTransformActive, cartTransformId };
@@ -126,19 +140,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
 
       const result = await response.json();
-      const errors = result.data?.cartTransformCreate?.userErrors;
 
+      // GraphQL seviye hataları (schema/syntax hataları)
+      if (result.errors && result.errors.length > 0) {
+        return {
+          success: false,
+          message: "GraphQL fout: " + result.errors.map((e: any) => e.message).join(", "),
+          intent,
+        };
+      }
+
+      const errors = result.data?.cartTransformCreate?.userErrors;
       if (errors && errors.length > 0) {
         return { success: false, message: "Fout: " + errors[0].message, intent };
       }
 
       if (result.data?.cartTransformCreate?.cartTransform) {
-        return { success: true, message: "Extra toeslag geactiveerd!", intent };
+        return { success: true, message: "Extra toeslag geactiveerd! Sla nu de instellingen op.", intent };
       }
 
-      return { success: false, message: "Activering mislukt.", intent };
+      return {
+        success: false,
+        message: "Activering mislukt. Controleer of de app is gedeployed (shopify app deploy).",
+        intent,
+      };
     } catch (error: any) {
-      return { success: false, message: "Fout: " + error.message, intent };
+      return { success: false, message: "Uitzondering: " + (error?.message || String(error)), intent };
     }
   }
 
@@ -189,7 +216,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
       // Shop ID'yi al
       const shopResponse = await admin.graphql(
-        `#graphql query { shop { id } }`
+        `#graphql
+          query {
+            shop {
+              id
+            }
+          }
+        `
       );
       const shopData = await shopResponse.json();
       const shopId = shopData.data.shop.id;
@@ -318,6 +351,8 @@ export default function ExtraChargePage() {
               <Text as="p" tone="subdued">
                 De Cart Transform functie moet actief zijn voordat de toeslag
                 wordt toegepast in de winkelwagen. Activeer hieronder eenmalig.
+                Zorg ervoor dat de app eerst is gedeployed via{" "}
+                <strong>shopify app deploy</strong>.
               </Text>
               <InlineStack gap="300">
                 {!currentlyActive ? (
