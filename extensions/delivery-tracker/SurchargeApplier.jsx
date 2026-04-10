@@ -5,7 +5,7 @@ const SETTINGS_NAMESPACE = 'extra_surcharge';
 const SETTINGS_KEY = 'settings';
 
 export default extension(
-  'purchase.checkout.cart-line-list.render-after',
+  'purchase.checkout.actions.render-before',
   async (root, { lines, applyCartLinesChange, shop, query }) => {
     let applied = false;
 

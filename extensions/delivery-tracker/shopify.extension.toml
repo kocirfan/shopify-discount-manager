@@ -15,7 +15,7 @@ type = "ui_extension"
   module = "./DiscountSummary.jsx"
 
   [[extensions.targeting]]
-  target = "purchase.checkout.cart-line-list.render-after"
+  target = "purchase.checkout.actions.render-before"
   module = "./SurchargeApplier.jsx"
 
   [extensions.capabilities]
