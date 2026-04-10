@@ -75,21 +75,15 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
     const newPrice = (originalPrice * (1 + surchargeRate)).toFixed(2);
 
     operations.push({
-      lineExpand: {
+      lineUpdate: {
         cartLineId: line.id,
-        expandedCartItems: [
-          {
-            merchandiseId: merchandise.id,
-            quantity: line.quantity,
-            price: {
-              adjustment: {
-                fixedPricePerUnit: {
-                  amount: newPrice,
-                },
-              },
+        price: {
+          adjustment: {
+            fixedPricePerUnit: {
+              amount: newPrice,
             },
           },
-        ],
+        },
       },
     });
   }
