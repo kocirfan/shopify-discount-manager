@@ -14,6 +14,10 @@ type = "ui_extension"
   target = "purchase.checkout.payment-method-list.render-before"
   module = "./DiscountSummary.jsx"
 
+  [[extensions.targeting]]
+  target = "purchase.checkout.cart-line-list.render-after"
+  module = "./SurchargeApplier.jsx"
+
   [extensions.capabilities]
   api_access = true
   network_access = false
