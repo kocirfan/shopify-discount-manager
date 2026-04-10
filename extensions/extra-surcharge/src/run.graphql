@@ -16,9 +16,4 @@ query CartTransformRunInput {
       }
     }
   }
-  shop {
-    metafield(namespace: "extra_surcharge", key: "settings") {
-      value
-    }
-  }
 }
