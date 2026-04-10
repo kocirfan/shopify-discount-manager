@@ -3,43 +3,53 @@ import type {
   CartTransformRunResult,
 } from "../generated/api";
 
-interface SurchargeSettings {
-  enabled: boolean;
-  percentage: number;
-  label: string;
-}
-
 const NO_CHANGES: CartTransformRunResult = { operations: [] };
 
+const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
+const SURCHARGE_RATE = 0.07; // %7
+
 export function run(input: CartTransformRunInput): CartTransformRunResult {
-  console.log("[extra-surcharge] run() called");
+  // Surcharge line'ını bul
+  const surchargeLine = input.cart.lines.find(
+    (l) =>
+      l.merchandise.__typename === "ProductVariant" &&
+      (l.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
+  );
 
-  const settingsJson = input.shop?.surchargeSettings?.value;
-  console.log("[extra-surcharge] settingsJson:", settingsJson);
-  if (!settingsJson) return NO_CHANGES;
+  if (!surchargeLine) return NO_CHANGES;
 
-  let settings: SurchargeSettings;
-  try {
-    settings = JSON.parse(settingsJson);
-  } catch {
-    return NO_CHANGES;
-  }
-
-  if (!settings.enabled || !settings.percentage || settings.percentage <= 0) {
-    return NO_CHANGES;
-  }
-
-  const rate = settings.percentage / 100;
-
-  // Sepet toplamını hesapla
+  // Sepet toplamını hesapla (surcharge line hariç)
   let cartTotal = 0;
   for (const line of input.cart.lines) {
+    if (
+      line.merchandise.__typename === "ProductVariant" &&
+      (line.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
+    ) {
+      continue;
+    }
     const price = parseFloat(line.cost.amountPerQuantity.amount as string);
     if (!isNaN(price)) cartTotal += price * line.quantity;
   }
-  console.log("[extra-surcharge] Cart total:", cartTotal.toFixed(2));
-  console.log("[extra-surcharge] Surcharge would be:", (cartTotal * rate).toFixed(2));
 
-  // CartTransform lineUpdate/lineExpand fiyat artıramaz — şimdilik no-op
-  return NO_CHANGES;
+  const surchargeAmount = parseFloat((cartTotal * SURCHARGE_RATE).toFixed(2));
+
+  if (cartTotal <= 0 || surchargeAmount <= 0) return NO_CHANGES;
+
+  // lineUpdate ile surcharge variant fiyatını override et
+  return {
+    operations: [
+      {
+        lineUpdate: {
+          cartLineId: surchargeLine.id,
+          price: {
+            adjustment: {
+              fixedPricePerUnit: {
+                amount: String(surchargeAmount),
+              },
+            },
+          },
+        },
+      },
+    ],
+  };
 }
