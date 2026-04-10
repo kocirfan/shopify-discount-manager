@@ -26,6 +26,14 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
     return NO_CHANGES;
   }
 
+  const cartTotal = input.cart.lines.reduce((sum, line) => {
+    const price = parseFloat(line.cost.amountPerQuantity.amount as string);
+    return sum + (isNaN(price) ? 0 : price * line.quantity);
+  }, 0);
+
+  console.log("[extra-surcharge] Surcharge percentage:", settings.percentage + "%");
+  console.log("[extra-surcharge] Cart total:", cartTotal.toFixed(2));
+
   const rate = settings.percentage / 100;
   const operations: CartTransformRunResult["operations"] = [];
 
