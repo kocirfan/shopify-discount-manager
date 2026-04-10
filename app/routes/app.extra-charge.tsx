@@ -92,18 +92,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const transformsData = await transformsResponse.json();
     const transforms = transformsData.data?.cartTransforms?.nodes || [];
 
+    // functionId formatı: "gid://shopify/ShopifyFunction/<uid>" veya
+    // sadece uid string'i olabilir. Handle veya uid ile eşleştir.
+    const surchargeUid = "2009ae03-b390-9bf4-fedb-ae9dbd6cde8b3a9ade62";
+    const surchargeExtensionId = "019d7615-26a2-7230-8bcb-b98f1828826b";
+
     for (const t of transforms) {
-      // functionId içinde extension handle'ı arama
-      if (t.functionId && t.functionId.includes("extra-surcharge")) {
+      const fid = t.functionId || "";
+      if (
+        fid.includes("extra-surcharge") ||
+        fid.includes(surchargeUid) ||
+        fid.includes(surchargeExtensionId)
+      ) {
         isCartTransformActive = true;
         cartTransformId = t.id;
         break;
       }
     }
-
-    // functionId ile bulunamazsa: tüm aktif transform'ları listele
-    // ve title/handle bilgisi yoksa en azından var olduğunu say
-    // (ilk deploy sonrası functionId formatı netleşince burada güncellenebilir)
   } catch (error) {
     // Hata olursa inactive kabul et
   }
@@ -152,7 +157,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const errors = result.data?.cartTransformCreate?.userErrors;
       if (errors && errors.length > 0) {
-        return { success: false, message: "Fout: " + errors[0].message, intent };
+        const msg = errors[0].message || "";
+        // Al zaten kayıtlıysa başarı say
+        if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("already registered")) {
+          return { success: true, message: "Cart Transform is al actief!", intent };
+        }
+        return { success: false, message: "Fout: " + msg, intent };
       }
 
       if (result.data?.cartTransformCreate?.cartTransform) {
