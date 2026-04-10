@@ -1,0 +1,30 @@
+query CartTransformRunInput {
+  cart {
+    lines {
+      id
+      quantity
+      cost {
+        amountPerQuantity {
+          amount
+        }
+        subtotalAmount {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+        }
+      }
+    }
+  }
+  shop {
+    surchargeSettings: metafield(
+      namespace: "extra_surcharge"
+      key: "settings"
+    ) {
+      value
+    }
+  }
+}

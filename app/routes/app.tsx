@@ -27,6 +27,7 @@ export default function App() {
           <s-link href="/app/cleanup">Opschonen & Debug</s-link>
           <s-link href="/app/additional">Extra Pagina</s-link>
           <s-link href="/app/deactivate-cart-transform">Cart Transform</s-link>
+          <s-link href="/app/extra-charge">Extra Toeslag</s-link>
         </s-app-nav>
         <Outlet />
       </PolarisAppProvider>

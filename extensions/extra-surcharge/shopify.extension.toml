@@ -1,0 +1,21 @@
+api_version = "2025-07"
+
+[[extensions]]
+name = "Extra Surcharge"
+handle = "extra-surcharge"
+uid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+type = "function"
+description = "Apply a configurable percentage surcharge to the cart subtotal"
+
+  [[extensions.targeting]]
+  target = "purchase.cart-transform.run"
+  input_query = "src/run.graphql"
+  export = "run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.ui.paths]
+  create = "/app/extra-charge"
+  details = "/app/extra-charge"
