@@ -12,7 +12,10 @@ interface SurchargeSettings {
 const NO_CHANGES: CartTransformRunResult = { operations: [] };
 
 export function run(input: CartTransformRunInput): CartTransformRunResult {
+  console.log("[extra-surcharge] run() called");
+
   const settingsJson = input.shop?.surchargeSettings?.value;
+  console.log("[extra-surcharge] settingsJson:", settingsJson);
   if (!settingsJson) return NO_CHANGES;
 
   let settings: SurchargeSettings;
