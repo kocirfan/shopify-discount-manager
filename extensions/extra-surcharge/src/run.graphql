@@ -7,6 +7,9 @@ query CartTransformRunInput {
         amountPerQuantity {
           amount
         }
+        subtotalAmount {
+          amount
+        }
       }
       merchandise {
         __typename
@@ -14,6 +17,11 @@ query CartTransformRunInput {
           id
         }
       }
+    }
+  }
+  shop {
+    surchargeSettings: metafield(namespace: "extra_surcharge", key: "settings") {
+      value
     }
   }
 }
