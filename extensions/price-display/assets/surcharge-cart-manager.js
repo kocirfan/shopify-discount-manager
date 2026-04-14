@@ -2,6 +2,7 @@
  * Surcharge Cart Manager
  * 1. Sepet toplamını backend'e gönderir → variant fiyatı güncellenir
  * 2. Surcharge ürününü sepete ekler (güncel fiyatla)
+ * 3. Sync tamamlanana kadar checkout butonları disabled tutulur
  */
 (function () {
   "use strict";
@@ -54,6 +55,71 @@
     return res.json();
   }
 
+  // ============================================================
+  // CHECKOUT BLOCKER
+  // Sync devam ederken checkout butonlarını disable et
+  // ============================================================
+  const CHECKOUT_SELECTORS = [
+    'a[href="/checkout"]',
+    'button[name="checkout"]',
+    'input[name="checkout"]',
+    'button[data-checkout-button]',
+    '[data-testid="checkout-button"]',
+  ].join(", ");
+
+  function getCheckoutButtons() {
+    return Array.from(document.querySelectorAll(CHECKOUT_SELECTORS));
+  }
+
+  function blockCheckout() {
+    getCheckoutButtons().forEach((el) => {
+      el.setAttribute("data-surcharge-blocked", "true");
+      el.setAttribute("disabled", "true");
+      el.style.opacity = "0.6";
+      el.style.pointerEvents = "none";
+      el.style.cursor = "wait";
+    });
+  }
+
+  function unblockCheckout() {
+    document.querySelectorAll("[data-surcharge-blocked]").forEach((el) => {
+      el.removeAttribute("data-surcharge-blocked");
+      el.removeAttribute("disabled");
+      el.style.opacity = "";
+      el.style.pointerEvents = "";
+      el.style.cursor = "";
+    });
+  }
+
+  // ============================================================
+  // CHECKOUT LINK INTERCEPT
+  // <a href="/checkout"> tıklanırsa sync bitene kadar beklet
+  // ============================================================
+  document.addEventListener("click", function (e) {
+    const anchor = e.target.closest('a[href="/checkout"]');
+    if (!anchor) return;
+    if (!_busy && !_pending) return;
+
+    e.preventDefault();
+    console.log("[Surcharge] checkout tıklandı ama sync devam ediyor, bekleniyor...");
+
+    waitForSync().then(() => {
+      window.location.href = "/checkout";
+    });
+  }, true);
+
+  function waitForSync() {
+    return new Promise((resolve) => {
+      if (!_busy && !_pending) return resolve();
+      const interval = setInterval(() => {
+        if (!_busy && !_pending) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 100);
+    });
+  }
+
   let _busy = false;
   let _pending = false;
 
@@ -64,6 +130,7 @@
     if (!config || !config.enabled) return;
 
     _busy = true;
+    blockCheckout();
     console.log("[Surcharge] sync başladı");
 
     try {
@@ -115,6 +182,8 @@
       if (_pending) {
         _pending = false;
         setTimeout(sync, 300);
+      } else {
+        unblockCheckout();
       }
     }
   }
