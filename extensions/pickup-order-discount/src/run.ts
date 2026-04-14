@@ -156,7 +156,7 @@ export function run(input: RunInput): FunctionResult {
         targets: [
           {
             orderSubtotal: {
-              excludedVariantIds: [],
+              excludedVariantIds: ["gid://shopify/ProductVariant/61571547791690"],
             },
           },
         ],

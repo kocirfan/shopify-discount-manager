@@ -172,11 +172,14 @@ export function run(input: RunInput): FunctionResult {
 
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
+  // Surcharge ürününe indirim uygulanmaz.
   // ============================================================
+  const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
   const targets: { productVariant: { id: string } }[] = [];
 
   for (const line of input.cart.lines) {
     if (line.merchandise.__typename === "ProductVariant" && line.merchandise.id) {
+      if (line.merchandise.id === SURCHARGE_VARIANT_ID) continue;
       targets.push({ productVariant: { id: line.merchandise.id } });
       ////console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
     }
