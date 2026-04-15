@@ -2,6 +2,7 @@
  * Surcharge Cart Manager
  * - Fiyat değişmemişse: hiçbir şey yapma
  * - Fiyat değişmişse: backend güncelle + eski satırı kaldır (paralel) → yeni ekle
+ * - Backend hatası olsa bile surcharge eklenir (Cart Transform checkout'ta fiyatı düzeltir)
  * - Sepet boşsa: surcharge'ı kaldır
  */
 (function () {
@@ -42,37 +43,48 @@
     return res.json();
   }
 
+  // Backend fiyat güncelleme — hata olursa sessizce geç, addItem'ı engelleme
   async function updateSurchargePrice(cartTotalEur) {
-    const shop = window.Shopify && window.Shopify.shop;
-    const res = await fetch(
-      `/apps/discount-manager/api/surcharge-price?shop=${encodeURIComponent(shop || "")}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cartTotal: cartTotalEur }),
-      }
-    );
-    if (!res.ok) throw new Error("surcharge-price error: " + res.status);
-    return res.json();
+    try {
+      const shop = window.Shopify && window.Shopify.shop;
+      const res = await fetch(
+        `/apps/discount-manager/api/surcharge-price?shop=${encodeURIComponent(shop || "")}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cartTotal: cartTotalEur }),
+        }
+      );
+      if (!res.ok) return null;
+      return res.json();
+    } catch (e) {
+      console.warn("[Surcharge] backend güncelleme başarısız (Cart Transform devreye girecek):", e);
+      return null;
+    }
   }
 
   // ============================================================
   // CHECKOUT BLOCKER
+  // DOM'a sonradan eklenen butonları da yakalar (MutationObserver)
   // ============================================================
+  const CHECKOUT_SELECTORS = [
+    'a[href="/checkout"]',
+    'button[name="checkout"]',
+    'input[name="checkout"]',
+    'button[data-checkout-button]',
+    '[data-testid="checkout-button"]',
+  ].join(",");
+
+  function applyBlock(el) {
+    el.setAttribute("data-surcharge-blocked", "true");
+    el.setAttribute("disabled", "true");
+    el.style.opacity = "0.6";
+    el.style.pointerEvents = "none";
+    el.style.cursor = "wait";
+  }
+
   function blockCheckout() {
-    document.querySelectorAll([
-      'a[href="/checkout"]',
-      'button[name="checkout"]',
-      'input[name="checkout"]',
-      'button[data-checkout-button]',
-      '[data-testid="checkout-button"]',
-    ].join(",")).forEach((el) => {
-      el.setAttribute("data-surcharge-blocked", "true");
-      el.setAttribute("disabled", "true");
-      el.style.opacity = "0.6";
-      el.style.pointerEvents = "none";
-      el.style.cursor = "wait";
-    });
+    document.querySelectorAll(CHECKOUT_SELECTORS).forEach(applyBlock);
   }
 
   function unblockCheckout() {
@@ -85,6 +97,13 @@
     });
   }
 
+  // Sonradan DOM'a eklenen checkout butonlarını da blokla
+  const _observer = new MutationObserver(() => {
+    if (_busy) blockCheckout();
+  });
+  _observer.observe(document.body, { childList: true, subtree: true });
+
+  // Link tıklamalarını yakala
   document.addEventListener("click", function (e) {
     const anchor = e.target.closest('a[href="/checkout"]');
     if (!anchor || (!_busy && !_pending)) return;
@@ -128,32 +147,24 @@
         return;
       }
 
-      // Client'ta beklenen fiyatı hesapla — gereksiz işlemden kaçın
+      // Client'ta beklenen fiyatı hesapla
       const expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
       const priceCorrect = surchargeLine &&
         surchargeLine.price === expectedCents &&
         surchargeLine.quantity === 1;
 
       if (priceCorrect) {
-        // Fiyat doğru, ekstra bir şey yapma
         return;
       }
 
-      // Fiyat yanlış veya surcharge yok:
-      // Backend güncelleme + eski satır kaldırma PARALEL başlat
-      const [result] = await Promise.all([
-        updateSurchargePrice(totalEur),
+      // Backend güncelleme + eski satır kaldırma paralel — backend hatası addItem'ı DURDURMAZ
+      await Promise.all([
+        updateSurchargePrice(totalEur), // hata olursa null döner, fırlatmaz
         surchargeLine ? removeLine(surchargeLine.key) : Promise.resolve(),
       ]);
 
-      if (!result.price) {
-        console.error("[Surcharge] backend fiyat döndürmedi");
-        return;
-      }
-
-      // Şimdi güncel base price ile ekle
       await addItem(VARIANT_ID);
-      console.log("[Surcharge] güncellendi:", result.price);
+      console.log("[Surcharge] güncellendi, totalEur:", totalEur);
 
     } catch (e) {
       console.error("[Surcharge] hata:", e);
