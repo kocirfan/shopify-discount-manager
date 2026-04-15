@@ -68,11 +68,30 @@
   // DOM'a sonradan eklenen butonları da yakalar (MutationObserver)
   // ============================================================
   const CHECKOUT_SELECTORS = [
+    // Standart checkout
     'a[href="/checkout"]',
+    'a[href*="/checkout"]',
     'button[name="checkout"]',
     'input[name="checkout"]',
     'button[data-checkout-button]',
     '[data-testid="checkout-button"]',
+    // Accelerated checkout (PayPal, Shop Pay, Google Pay, Apple Pay)
+    '.shopify-payment-button__button',
+    '.shopify-payment-button button',
+    '[data-shopify="payment-button"]',
+    '[data-payment-button]',
+    'button.dynamic-checkout__button',
+    '.dynamic-checkout__content button',
+  ].join(",");
+
+  // Accelerated checkout container'ları (Shop Pay, PayPal, Apple Pay, Google Pay)
+  // Bunlar iframe içinde render edilir, disable edilemez — tamamen gizlenir
+  const ACCELERATED_SELECTORS = [
+    '.shopify-payment-button',
+    '[data-shopify="payment-button"]',
+    '.dynamic-checkout',
+    '#dynamic-checkout-cart',
+    '[data-dynamic-checkout]',
   ].join(",");
 
   function applyBlock(el) {
@@ -85,6 +104,13 @@
 
   function blockCheckout() {
     document.querySelectorAll(CHECKOUT_SELECTORS).forEach(applyBlock);
+    // Accelerated butonları tamamen gizle (iframe erişilemez)
+    document.querySelectorAll(ACCELERATED_SELECTORS).forEach((el) => {
+      if (!el.hasAttribute("data-surcharge-hidden")) {
+        el.setAttribute("data-surcharge-hidden", "true");
+        el.style.display = "none";
+      }
+    });
   }
 
   function unblockCheckout() {
@@ -95,11 +121,73 @@
       el.style.pointerEvents = "";
       el.style.cursor = "";
     });
+    document.querySelectorAll("[data-surcharge-hidden]").forEach((el) => {
+      el.removeAttribute("data-surcharge-hidden");
+      el.style.display = "";
+    });
   }
 
-  // Sonradan DOM'a eklenen checkout butonlarını da blokla
+  // ============================================================
+  // SURCHARGE SİL BUTONU ENGELLE
+  // Sepette surcharge satırındaki remove/delete butonunu gizle
+  // ============================================================
+  const SURCHARGE_VARIANT_ID_NUM = getConfig()?.variantId;
+
+  function hideSurchargeRemoveButton() {
+    if (!SURCHARGE_VARIANT_ID_NUM) return;
+
+    // Yöntem 1: data-variant-id attribute ile satırı bul
+    document.querySelectorAll(
+      `[data-variant-id="${SURCHARGE_VARIANT_ID_NUM}"], ` +
+      `[data-id="${SURCHARGE_VARIANT_ID_NUM}"]`
+    ).forEach((lineEl) => {
+      const container = lineEl.closest("tr, li, [data-cart-item], .cart-item, .cart__item");
+      if (container) hideRemoveBtn(container);
+    });
+
+    // Yöntem 2: /cart/change.js veya remove linkini içeren butonları tara
+    // Tema bazı butonlara line index veya key koyar, bu yüzden tüm remove butonlarını
+    // parent container üzerinden kontrol et
+    document.querySelectorAll(
+      'a[href*="/cart/change"], button[data-line], [data-cart-item-remove], ' +
+      '.cart-remove, .cart__remove, [aria-label*="Remove"], [aria-label*="Verwijder"]'
+    ).forEach((btn) => {
+      const container = btn.closest("tr, li, [data-cart-item], .cart-item, .cart__item");
+      if (!container) return;
+      const variantEl = container.querySelector(
+        `[data-variant-id="${SURCHARGE_VARIANT_ID_NUM}"], ` +
+        `[data-id="${SURCHARGE_VARIANT_ID_NUM}"]`
+      );
+      // data-variant-id yoksa, içindeki metni veya SKU'yu kontrol et
+      const hasOrdertoeslagText = container.textContent?.includes("ORDERTOESLA") ||
+        container.textContent?.includes("Service Toeslag") ||
+        container.textContent?.includes("toeslag");
+      if (variantEl || hasOrdertoeslagText) hideRemoveBtn(container);
+    });
+  }
+
+  function hideRemoveBtn(container) {
+    container.querySelectorAll(
+      'a[href*="/cart/change"], button[data-line], [data-cart-item-remove], ' +
+      '.cart-remove, .cart__remove, [aria-label*="Remove"], [aria-label*="Verwijder"], ' +
+      'button.quantity__button, a.cart-item__remove'
+    ).forEach((btn) => {
+      btn.style.display = "none";
+      btn.setAttribute("data-surcharge-remove-hidden", "true");
+    });
+    // Quantity +/- butonlarını da gizle (miktar değiştirmeyi engelle)
+    container.querySelectorAll(
+      '.quantity, .cart-item__quantity-wrapper, [data-quantity-wrapper]'
+    ).forEach((el) => {
+      el.style.pointerEvents = "none";
+      el.style.opacity = "0.4";
+    });
+  }
+
+  // MutationObserver: DOM değişince tekrar kontrol et
   const _observer = new MutationObserver(() => {
     if (_busy) blockCheckout();
+    hideSurchargeRemoveButton();
   });
   _observer.observe(document.body, { childList: true, subtree: true });
 
@@ -165,6 +253,7 @@
 
       await addItem(VARIANT_ID);
       console.log("[Surcharge] güncellendi, totalEur:", totalEur);
+      hideSurchargeRemoveButton();
 
     } catch (e) {
       console.error("[Surcharge] hata:", e);
@@ -185,21 +274,28 @@
   document.addEventListener("cart:refresh", sync);
 
   // Fetch intercept
+  // /cart/add veya /cart/change isteği tamamlandığında sync'i başlat
+  // ve response'u sync bitene kadar beklet — tema sync bitmeden checkout butonunu aktif edemez
   const _origFetch = window.fetch;
   window.fetch = async function (...args) {
-    const result = await _origFetch.apply(this, args);
-    if (_busy) return result;
     const url = typeof args[0] === "string" ? args[0] : (args[0]?.url ?? "");
-    if (
+    const isCartMutation = (
       (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) &&
       !url.includes("/apps/")
-    ) {
-      setTimeout(sync, 400);
+    );
+
+    const result = await _origFetch.apply(this, args);
+
+    if (isCartMutation && !_busy) {
+      // sync'i başlat ve bitmesini bekle, sonra response'u döndür
+      sync();
+      await waitForSync();
     }
+
     return result;
   };
 
-  // XHR intercept
+  // XHR intercept — sync başlat ve response'u beklet
   const _origOpen = XMLHttpRequest.prototype.open;
   const _origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (_m, url) {
@@ -207,10 +303,19 @@
     return _origOpen.apply(this, arguments);
   };
   XMLHttpRequest.prototype.send = function () {
-    if (!_busy && this._sUrl &&
+    if (this._sUrl &&
       (this._sUrl.includes("/cart/add") || this._sUrl.includes("/cart/change") || this._sUrl.includes("/cart/update")) &&
       !this._sUrl.includes("/apps/")) {
-      this.addEventListener("load", () => setTimeout(sync, 400));
+      const xhr = this;
+      const _origOnReadyStateChange = xhr.onreadystatechange;
+      xhr.onreadystatechange = null;
+      this.addEventListener("load", async () => {
+        if (!_busy) {
+          sync();
+          await waitForSync();
+        }
+        if (_origOnReadyStateChange) _origOnReadyStateChange.call(xhr);
+      });
     }
     return _origSend.apply(this, arguments);
   };

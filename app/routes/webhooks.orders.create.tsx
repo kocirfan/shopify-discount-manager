@@ -1,52 +1,77 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
+const SURCHARGE_VARIANT_ID = "61571547791690";
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, payload } = await authenticate.webhook(request);
 
   if (!admin) {
-    //console.error("No admin API available");
     return new Response("No admin", { status: 401 });
   }
 
-  //console.log("=== ORDER CREATE WEBHOOK ===");
-  //console.log("Order ID:", payload.id);
-  //console.log("Order attributes:", payload.note_attributes);
-
   try {
-    // Check if pickup was selected
+    // ============================================================
+    // SURCHARGE KONTROLÜ
+    // Sipariş içinde surcharge line item yoksa "surcharge-missing"
+    // tag'i ekle — admin'den manuel takip edilebilsin.
+    // ============================================================
+    const lineItems: any[] = payload.line_items || [];
+    const hasSurcharge = lineItems.some(
+      (item: any) => String(item.variant_id) === SURCHARGE_VARIANT_ID
+    );
+
+    if (!hasSurcharge) {
+      const realItems = lineItems.filter(
+        (item: any) => String(item.variant_id) !== SURCHARGE_VARIANT_ID
+      );
+      const hasRealItems = realItems.length > 0;
+
+      if (hasRealItems) {
+        await admin.graphql(`#graphql
+          mutation tagsAdd($id: ID!, $tags: [String!]!) {
+            tagsAdd(id: $id, tags: $tags) {
+              userErrors { message }
+            }
+          }
+        `, {
+          variables: {
+            id: `gid://shopify/Order/${payload.id}`,
+            tags: ["surcharge-missing"],
+          },
+        });
+        console.error(`[surcharge-webhook] ⚠️ Surcharge eksik! Sipariş #${payload.order_number} — 'surcharge-missing' tag eklendi`);
+      }
+    }
+
+    // ============================================================
+    // PICKUP İNDİRİMİ KONTROLÜ
+    // ============================================================
     const pickupAttribute = payload.note_attributes?.find(
       (attr: any) => attr.name === "_selected_delivery_type" && attr.value === "pickup"
     );
 
     if (!pickupAttribute) {
-      //console.log("No pickup attribute found, skipping discount");
-      return new Response("OK - No pickup", { status: 200 });
+      return new Response("OK", { status: 200 });
     }
 
-    //console.log("✅ Pickup order detected!");
-
-    // Get discount settings from metafield
-    const shopResponse = await admin.graphql(
-      `#graphql
-        query {
-          shop {
-            deliveryDiscountSettings: metafield(
-              namespace: "delivery_discount"
-              key: "settings"
-            ) {
-              value
-            }
+    const shopResponse = await admin.graphql(`#graphql
+      query {
+        shop {
+          deliveryDiscountSettings: metafield(
+            namespace: "delivery_discount"
+            key: "settings"
+          ) {
+            value
           }
         }
-      `
-    );
+      }
+    `);
 
     const shopData = await shopResponse.json();
     const settingsJson = shopData.data?.shop?.deliveryDiscountSettings?.value;
 
     if (!settingsJson) {
-      //console.log("No settings found");
       return new Response("OK - No settings", { status: 200 });
     }
 
@@ -54,61 +79,35 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const pickupMethod = settings.find((m: any) => m.type === "pickup" && m.enabled);
 
     if (!pickupMethod) {
-      //console.log("No active pickup discount method found");
       return new Response("OK - No pickup method", { status: 200 });
     }
 
-    //console.log("Pickup discount value:", pickupMethod.discountValue);
-
-    // Calculate additional discount on subtotal (after all other discounts)
     const currentSubtotal = parseFloat(payload.current_subtotal_price);
     const additionalDiscountAmount = (currentSubtotal * pickupMethod.discountValue) / 100;
 
-    //console.log("Current subtotal:", currentSubtotal);
-    //console.log(`Additional discount (${pickupMethod.discountValue}%):`, additionalDiscountAmount);
-
-    // Add a note to the order about the pickup discount
     const noteText = `🎉 Pickup Discount Applied!\n\nOriginal subtotal: €${currentSubtotal.toFixed(2)}\nPickup discount (${pickupMethod.discountValue}%): -€${additionalDiscountAmount.toFixed(2)}\n\nNote: This discount will be manually applied by the store owner.`;
 
-    const noteResponse = await admin.graphql(
-      `#graphql
-        mutation orderUpdate($input: OrderInput!) {
-          orderUpdate(input: $input) {
-            order {
-              id
-              note
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `,
-      {
-        variables: {
-          input: {
-            id: `gid://shopify/Order/${payload.id}`,
-            note: noteText,
-            tags: ["pickup-discount-pending"]
-          }
+    await admin.graphql(`#graphql
+      mutation orderUpdate($input: OrderInput!) {
+        orderUpdate(input: $input) {
+          order { id note }
+          userErrors { field message }
         }
       }
-    );
-
-    const noteResult = await noteResponse.json();
-    //console.log("Note added:", JSON.stringify(noteResult, null, 2));
-
-    if (noteResult.data?.orderUpdate?.userErrors?.length > 0) {
-      //console.error("Error updating order:", noteResult.data.orderUpdate.userErrors);
-      return new Response("Error", { status: 500 });
-    }
-
-    //console.log("✅ Pickup discount note added to order!");
+    `, {
+      variables: {
+        input: {
+          id: `gid://shopify/Order/${payload.id}`,
+          note: noteText,
+          tags: ["pickup-discount-pending"],
+        },
+      },
+    });
 
     return new Response("OK", { status: 200 });
+
   } catch (error) {
-    //console.error("Error processing order webhook:", error);
+    console.error("[orders/create webhook] hata:", error);
     return new Response("Error", { status: 500 });
   }
 };
