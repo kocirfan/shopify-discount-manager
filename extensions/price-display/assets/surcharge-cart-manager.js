@@ -1,11 +1,8 @@
 /**
  * Surcharge Cart Manager
- * 1. Sepet toplamını backend'e gönderir → variant base price güncellenir (sepet sayfasında doğru görünsün)
- * 2. Surcharge ürününü sepete ekler / fiyatı değişince günceller
- * 3. Sync tamamlanana kadar checkout butonları bloklanır
- *
- * NOT: Cart Transform function checkout'ta fiyatı ayrıca override eder.
- * Buradaki backend çağrısı sepet sayfasındaki gösterim içindir.
+ * - Fiyat değişmemişse: hiçbir şey yapma
+ * - Fiyat değişmişse: backend güncelle + eski satırı kaldır (paralel) → yeni ekle
+ * - Sepet boşsa: surcharge'ı kaldır
  */
 (function () {
   "use strict";
@@ -55,23 +52,21 @@
         body: JSON.stringify({ cartTotal: cartTotalEur }),
       }
     );
-    if (!res.ok) throw new Error("surcharge-price endpoint error: " + res.status);
+    if (!res.ok) throw new Error("surcharge-price error: " + res.status);
     return res.json();
   }
 
   // ============================================================
   // CHECKOUT BLOCKER
   // ============================================================
-  const CHECKOUT_SELECTORS = [
-    'a[href="/checkout"]',
-    'button[name="checkout"]',
-    'input[name="checkout"]',
-    'button[data-checkout-button]',
-    '[data-testid="checkout-button"]',
-  ].join(", ");
-
   function blockCheckout() {
-    document.querySelectorAll(CHECKOUT_SELECTORS).forEach((el) => {
+    document.querySelectorAll([
+      'a[href="/checkout"]',
+      'button[name="checkout"]',
+      'input[name="checkout"]',
+      'button[data-checkout-button]',
+      '[data-testid="checkout-button"]',
+    ].join(",")).forEach((el) => {
       el.setAttribute("data-surcharge-blocked", "true");
       el.setAttribute("disabled", "true");
       el.style.opacity = "0.6";
@@ -92,8 +87,7 @@
 
   document.addEventListener("click", function (e) {
     const anchor = e.target.closest('a[href="/checkout"]');
-    if (!anchor) return;
-    if (!_busy && !_pending) return;
+    if (!anchor || (!_busy && !_pending)) return;
     e.preventDefault();
     waitForSync().then(() => { window.location.href = "/checkout"; });
   }, true);
@@ -101,8 +95,8 @@
   function waitForSync() {
     return new Promise((resolve) => {
       if (!_busy && !_pending) return resolve();
-      const interval = setInterval(() => {
-        if (!_busy && !_pending) { clearInterval(interval); resolve(); }
+      const id = setInterval(() => {
+        if (!_busy && !_pending) { clearInterval(id); resolve(); }
       }, 100);
     });
   }
@@ -118,7 +112,6 @@
 
     _busy = true;
     blockCheckout();
-    console.log("[Surcharge] sync başladı");
 
     try {
       const cart = await getCart();
@@ -130,36 +123,35 @@
       const totalCents = realLines.reduce((sum, l) => sum + l.line_price, 0);
       const totalEur = totalCents / 100;
 
-      // Sepet boşsa surcharge'ı kaldır
       if (totalEur <= 0) {
         if (surchargeLine) await removeLine(surchargeLine.key);
         return;
       }
 
-      // Beklenen fiyatı client'ta hesapla (backend ile aynı formül)
+      // Client'ta beklenen fiyatı hesapla — gereksiz işlemden kaçın
       const expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
+      const priceCorrect = surchargeLine &&
+        surchargeLine.price === expectedCents &&
+        surchargeLine.quantity === 1;
 
-      // Surcharge zaten sepette ve fiyat doğruysa — sadece backend'i güncelle (sepet gösterimi için),
-      // ürünü tekrar ekleme/kaldırma
-      if (surchargeLine && surchargeLine.price === expectedCents && surchargeLine.quantity === 1) {
-        console.log("[Surcharge] fiyat doğru, değişiklik yok");
-        // Yine de backend'i sessizce güncelle (bir sonraki yükleme için)
-        updateSurchargePrice(totalEur).catch(() => {});
+      if (priceCorrect) {
+        // Fiyat doğru, ekstra bir şey yapma
         return;
       }
 
-      // Fiyat değişmiş ya da surcharge yok:
-      // 1. Backend'e gönder — variant base price'ını güncelle
-      const result = await updateSurchargePrice(totalEur);
+      // Fiyat yanlış veya surcharge yok:
+      // Backend güncelleme + eski satır kaldırma PARALEL başlat
+      const [result] = await Promise.all([
+        updateSurchargePrice(totalEur),
+        surchargeLine ? removeLine(surchargeLine.key) : Promise.resolve(),
+      ]);
+
       if (!result.price) {
         console.error("[Surcharge] backend fiyat döndürmedi");
         return;
       }
 
-      // 2. Varsa kaldır
-      if (surchargeLine) await removeLine(surchargeLine.key);
-
-      // 3. Güncel base price ile ekle (bekleme yok — backend zaten güncelledi)
+      // Şimdi güncel base price ile ekle
       await addItem(VARIANT_ID);
       console.log("[Surcharge] güncellendi:", result.price);
 
@@ -176,17 +168,17 @@
     }
   }
 
-  console.log("[Surcharge] script yüklendi");
   sync();
 
   document.addEventListener("cart:updated", sync);
   document.addEventListener("cart:refresh", sync);
 
+  // Fetch intercept
   const _origFetch = window.fetch;
   window.fetch = async function (...args) {
     const result = await _origFetch.apply(this, args);
     if (_busy) return result;
-    const url = typeof args[0] === "string" ? args[0] : (args[0] && args[0].url) || "";
+    const url = typeof args[0] === "string" ? args[0] : (args[0]?.url ?? "");
     if (
       (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) &&
       !url.includes("/apps/")
@@ -196,6 +188,7 @@
     return result;
   };
 
+  // XHR intercept
   const _origOpen = XMLHttpRequest.prototype.open;
   const _origSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (_m, url) {
