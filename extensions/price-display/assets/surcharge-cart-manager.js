@@ -225,6 +225,7 @@
 
       if (totalEur <= 0) {
         if (surchargeLine) {
+          blockCheckout();
           return removeLine(surchargeLine.key).then(function () { _lastCartHash = null; });
         }
         return Promise.resolve();
@@ -235,11 +236,13 @@
         surchargeLine.price === expectedCents &&
         surchargeLine.quantity === 1;
 
-      // Hash değişmemişse ve fiyat doğruysa — bir şey yapma
+      // Hash değişmemişse ve fiyat doğruysa — hiçbir şey yapma, butona dokunma
       if (priceCorrect && currentHash === _lastCartHash) {
         return Promise.resolve();
       }
 
+      // Gerçekten iş var — şimdi blokla
+      blockCheckout();
       _lastCartHash = currentHash;
 
       return Promise.all([
