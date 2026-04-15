@@ -1,17 +1,17 @@
 /**
  * Surcharge Cart Manager
- * - Fiyat değişmemişse: hiçbir şey yapma
- * - Fiyat değişmişse: backend güncelle + eski satırı kaldır (paralel) → yeni ekle
- * - Backend hatası olsa bile surcharge eklenir (Cart Transform checkout'ta fiyatı düzeltir)
- * - Sepet boşsa: surcharge'ı kaldır
+ * Fetch/XHR intercept yerine polling kullanır — tema'nın internal module'leri
+ * window.fetch override'ını bypass ettiği için polling daha güvenilir.
  */
 (function () {
   "use strict";
 
+  var POLL_INTERVAL = 1500; // ms — sepeti bu aralıkla kontrol et
+
   function getConfig() {
-    const el = document.getElementById("surcharge-config");
+    var el = document.getElementById("surcharge-config");
     if (!el) return null;
-    const variantId = el.getAttribute("data-variant-id");
+    var variantId = el.getAttribute("data-variant-id");
     if (!variantId) return null;
     return {
       variantId: variantId,
@@ -20,92 +20,80 @@
     };
   }
 
-  async function getCart() {
-    const res = await fetch("/cart.js");
-    return res.json();
+  function fetchJSON(url, options) {
+    return fetch(url, options).then(function (r) { return r.json(); });
   }
 
-  async function addItem(variantId) {
-    const res = await fetch("/cart/add.js", {
+  function getCart() {
+    return fetchJSON("/cart.js");
+  }
+
+  function addItem(variantId) {
+    return fetchJSON("/cart/add.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
     });
-    return res.json();
   }
 
-  async function removeLine(lineKey) {
-    const res = await fetch("/cart/change.js", {
+  function removeLine(lineKey) {
+    return fetchJSON("/cart/change.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: lineKey, quantity: 0 }),
     });
-    return res.json();
   }
 
-  // Backend fiyat güncelleme — hata olursa sessizce geç, addItem'ı engelleme
-  async function updateSurchargePrice(cartTotalEur) {
-    try {
-      const shop = window.Shopify && window.Shopify.shop;
-      const res = await fetch(
-        `/apps/discount-manager/api/surcharge-price?shop=${encodeURIComponent(shop || "")}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cartTotal: cartTotalEur }),
-        }
-      );
-      if (!res.ok) return null;
-      return res.json();
-    } catch (e) {
-      console.warn("[Surcharge] backend güncelleme başarısız (Cart Transform devreye girecek):", e);
+  function updateSurchargePrice(cartTotalEur) {
+    var shop = window.Shopify && window.Shopify.shop;
+    return fetch(
+      "/apps/discount-manager/api/surcharge-price?shop=" + encodeURIComponent(shop || ""),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartTotal: cartTotalEur }),
+      }
+    ).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).catch(function () {
       return null;
-    }
+    });
   }
 
   // ============================================================
   // CHECKOUT BLOCKER
-  // DOM'a sonradan eklenen butonları da yakalar (MutationObserver)
   // ============================================================
-  const CHECKOUT_SELECTORS = [
-    // Standart checkout
+  var CHECKOUT_SELECTORS = [
     'a[href="/checkout"]',
     'a[href*="/checkout"]',
     'button[name="checkout"]',
     'input[name="checkout"]',
     'button[data-checkout-button]',
     '[data-testid="checkout-button"]',
-    // Accelerated checkout (PayPal, Shop Pay, Google Pay, Apple Pay)
-    '.shopify-payment-button__button',
-    '.shopify-payment-button button',
+    ".shopify-payment-button__button",
+    ".shopify-payment-button button",
     '[data-shopify="payment-button"]',
-    '[data-payment-button]',
-    'button.dynamic-checkout__button',
-    '.dynamic-checkout__content button',
+    "button.dynamic-checkout__button",
+    ".dynamic-checkout__content button",
   ].join(",");
 
-  // Accelerated checkout container'ları (Shop Pay, PayPal, Apple Pay, Google Pay)
-  // Bunlar iframe içinde render edilir, disable edilemez — tamamen gizlenir
-  const ACCELERATED_SELECTORS = [
-    '.shopify-payment-button',
+  var ACCELERATED_SELECTORS = [
+    ".shopify-payment-button",
     '[data-shopify="payment-button"]',
-    '.dynamic-checkout',
-    '#dynamic-checkout-cart',
-    '[data-dynamic-checkout]',
+    ".dynamic-checkout",
+    "#dynamic-checkout-cart",
+    "[data-dynamic-checkout]",
   ].join(",");
-
-  function applyBlock(el) {
-    el.setAttribute("data-surcharge-blocked", "true");
-    el.setAttribute("disabled", "true");
-    el.style.opacity = "0.6";
-    el.style.pointerEvents = "none";
-    el.style.cursor = "wait";
-  }
 
   function blockCheckout() {
-    document.querySelectorAll(CHECKOUT_SELECTORS).forEach(applyBlock);
-    // Accelerated butonları tamamen gizle (iframe erişilemez)
-    document.querySelectorAll(ACCELERATED_SELECTORS).forEach((el) => {
+    document.querySelectorAll(CHECKOUT_SELECTORS).forEach(function (el) {
+      el.setAttribute("data-surcharge-blocked", "true");
+      el.setAttribute("disabled", "true");
+      el.style.opacity = "0.6";
+      el.style.pointerEvents = "none";
+      el.style.cursor = "wait";
+    });
+    document.querySelectorAll(ACCELERATED_SELECTORS).forEach(function (el) {
       if (!el.hasAttribute("data-surcharge-hidden")) {
         el.setAttribute("data-surcharge-hidden", "true");
         el.style.display = "none";
@@ -114,209 +102,182 @@
   }
 
   function unblockCheckout() {
-    document.querySelectorAll("[data-surcharge-blocked]").forEach((el) => {
+    document.querySelectorAll("[data-surcharge-blocked]").forEach(function (el) {
       el.removeAttribute("data-surcharge-blocked");
       el.removeAttribute("disabled");
       el.style.opacity = "";
       el.style.pointerEvents = "";
       el.style.cursor = "";
     });
-    document.querySelectorAll("[data-surcharge-hidden]").forEach((el) => {
+    document.querySelectorAll("[data-surcharge-hidden]").forEach(function (el) {
       el.removeAttribute("data-surcharge-hidden");
       el.style.display = "";
     });
   }
 
+  // Checkout linkine tıklanırsa sync bitene kadar beklet
+  document.addEventListener("click", function (e) {
+    var anchor = e.target.closest('a[href*="/checkout"]');
+    if (!anchor) return;
+    if (!_busy) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    waitForSync().then(function () {
+      window.location.href = anchor.href;
+    });
+  }, true);
+
+  function waitForSync() {
+    return new Promise(function (resolve) {
+      if (!_busy) return resolve();
+      var id = setInterval(function () {
+        if (!_busy) { clearInterval(id); resolve(); }
+      }, 100);
+    });
+  }
+
   // ============================================================
   // SURCHARGE SİL BUTONU ENGELLE
-  // Sepette surcharge satırındaki remove/delete butonunu gizle
   // ============================================================
-  const SURCHARGE_VARIANT_ID_NUM = getConfig()?.variantId;
-
   function hideSurchargeRemoveButton() {
-    if (!SURCHARGE_VARIANT_ID_NUM) return;
+    var config = getConfig();
+    if (!config) return;
 
-    // Yöntem 1: data-variant-id attribute ile satırı bul
+    // Variant ID ile satırı bul
+    var containers = [];
+
     document.querySelectorAll(
-      `[data-variant-id="${SURCHARGE_VARIANT_ID_NUM}"], ` +
-      `[data-id="${SURCHARGE_VARIANT_ID_NUM}"]`
-    ).forEach((lineEl) => {
-      const container = lineEl.closest("tr, li, [data-cart-item], .cart-item, .cart__item");
-      if (container) hideRemoveBtn(container);
+      '[data-variant-id="' + config.variantId + '"], [data-id="' + config.variantId + '"]'
+    ).forEach(function (el) {
+      var c = el.closest("tr, li, [data-cart-item], .cart-item, .cart__item");
+      if (c && containers.indexOf(c) === -1) containers.push(c);
     });
 
-    // Yöntem 2: /cart/change.js veya remove linkini içeren butonları tara
-    // Tema bazı butonlara line index veya key koyar, bu yüzden tüm remove butonlarını
-    // parent container üzerinden kontrol et
-    document.querySelectorAll(
-      'a[href*="/cart/change"], button[data-line], [data-cart-item-remove], ' +
-      '.cart-remove, .cart__remove, [aria-label*="Remove"], [aria-label*="Verwijder"]'
-    ).forEach((btn) => {
-      const container = btn.closest("tr, li, [data-cart-item], .cart-item, .cart__item");
-      if (!container) return;
-      const variantEl = container.querySelector(
-        `[data-variant-id="${SURCHARGE_VARIANT_ID_NUM}"], ` +
-        `[data-id="${SURCHARGE_VARIANT_ID_NUM}"]`
-      );
-      // data-variant-id yoksa, içindeki metni veya SKU'yu kontrol et
-      const hasOrdertoeslagText = container.textContent?.includes("ORDERTOESLA") ||
-        container.textContent?.includes("Service Toeslag") ||
-        container.textContent?.includes("toeslag");
-      if (variantEl || hasOrdertoeslagText) hideRemoveBtn(container);
+    // Text içeriğiyle bul (fallback)
+    document.querySelectorAll("tr, li, [data-cart-item], .cart-item, .cart__item").forEach(function (el) {
+      if (
+        (el.textContent.includes("ORDERTOESLAG") || el.textContent.includes("Service Toeslag")) &&
+        containers.indexOf(el) === -1
+      ) {
+        containers.push(el);
+      }
+    });
+
+    containers.forEach(function (container) {
+      container.querySelectorAll(
+        'a[href*="/cart/change"], [data-cart-item-remove], .cart-remove, ' +
+        '.cart__remove, [aria-label*="Remove"], [aria-label*="Verwijder"], ' +
+        'a.cart-item__remove, button.cart-item__remove'
+      ).forEach(function (btn) {
+        btn.style.display = "none";
+        btn.setAttribute("data-surcharge-remove-hidden", "true");
+      });
+      container.querySelectorAll(
+        ".quantity, .cart-item__quantity-wrapper, [data-quantity-wrapper]"
+      ).forEach(function (el) {
+        el.style.pointerEvents = "none";
+        el.style.opacity = "0.4";
+      });
     });
   }
 
-  function hideRemoveBtn(container) {
-    container.querySelectorAll(
-      'a[href*="/cart/change"], button[data-line], [data-cart-item-remove], ' +
-      '.cart-remove, .cart__remove, [aria-label*="Remove"], [aria-label*="Verwijder"], ' +
-      'button.quantity__button, a.cart-item__remove'
-    ).forEach((btn) => {
-      btn.style.display = "none";
-      btn.setAttribute("data-surcharge-remove-hidden", "true");
-    });
-    // Quantity +/- butonlarını da gizle (miktar değiştirmeyi engelle)
-    container.querySelectorAll(
-      '.quantity, .cart-item__quantity-wrapper, [data-quantity-wrapper]'
-    ).forEach((el) => {
-      el.style.pointerEvents = "none";
-      el.style.opacity = "0.4";
-    });
-  }
-
-  // MutationObserver: DOM değişince tekrar kontrol et
-  const _observer = new MutationObserver(() => {
+  // MutationObserver
+  var _observer = new MutationObserver(function () {
     if (_busy) blockCheckout();
     hideSurchargeRemoveButton();
   });
   _observer.observe(document.body, { childList: true, subtree: true });
 
-  // Link tıklamalarını yakala
-  document.addEventListener("click", function (e) {
-    const anchor = e.target.closest('a[href="/checkout"]');
-    if (!anchor || (!_busy && !_pending)) return;
-    e.preventDefault();
-    waitForSync().then(() => { window.location.href = "/checkout"; });
-  }, true);
+  // ============================================================
+  // CORE SYNC
+  // ============================================================
+  var _busy = false;
+  var _lastCartHash = null;
 
-  function waitForSync() {
-    return new Promise((resolve) => {
-      if (!_busy && !_pending) return resolve();
-      const id = setInterval(() => {
-        if (!_busy && !_pending) { clearInterval(id); resolve(); }
-      }, 100);
-    });
+  function cartHash(lines) {
+    // Surcharge hariç satırların variant+quantity'sini hash'le
+    return lines
+      .filter(function (l) { return String(l.variant_id) !== String(getConfig().variantId); })
+      .map(function (l) { return l.variant_id + ":" + l.quantity; })
+      .sort()
+      .join("|");
   }
 
-  let _busy = false;
-  let _pending = false;
+  function sync() {
+    if (_busy) return;
 
-  async function sync() {
-    if (_busy) { _pending = true; return; }
-
-    const config = getConfig();
+    var config = getConfig();
     if (!config || !config.enabled) return;
 
     _busy = true;
     blockCheckout();
 
-    try {
-      const cart = await getCart();
-      const lines = cart.items || [];
-      const VARIANT_ID = String(config.variantId);
+    getCart().then(function (cart) {
+      var lines = cart.items || [];
+      var VARIANT_ID = String(config.variantId);
 
-      const surchargeLine = lines.find((l) => String(l.variant_id) === VARIANT_ID);
-      const realLines = lines.filter((l) => String(l.variant_id) !== VARIANT_ID);
-      const totalCents = realLines.reduce((sum, l) => sum + l.line_price, 0);
-      const totalEur = totalCents / 100;
+      var surchargeLine = lines.find(function (l) { return String(l.variant_id) === VARIANT_ID; });
+      var realLines = lines.filter(function (l) { return String(l.variant_id) !== VARIANT_ID; });
+      var totalCents = realLines.reduce(function (sum, l) { return sum + l.line_price; }, 0);
+      var totalEur = totalCents / 100;
+
+      var currentHash = cartHash(lines);
 
       if (totalEur <= 0) {
-        if (surchargeLine) await removeLine(surchargeLine.key);
-        return;
+        if (surchargeLine) {
+          return removeLine(surchargeLine.key).then(function () { _lastCartHash = null; });
+        }
+        return Promise.resolve();
       }
 
-      // Client'ta beklenen fiyatı hesapla
-      const expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
-      const priceCorrect = surchargeLine &&
+      var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
+      var priceCorrect = surchargeLine &&
         surchargeLine.price === expectedCents &&
         surchargeLine.quantity === 1;
 
-      if (priceCorrect) {
-        return;
+      // Hash değişmemişse ve fiyat doğruysa — bir şey yapma
+      if (priceCorrect && currentHash === _lastCartHash) {
+        return Promise.resolve();
       }
 
-      // Backend güncelleme + eski satır kaldırma paralel — backend hatası addItem'ı DURDURMAZ
-      await Promise.all([
-        updateSurchargePrice(totalEur), // hata olursa null döner, fırlatmaz
+      _lastCartHash = currentHash;
+
+      return Promise.all([
+        updateSurchargePrice(totalEur),
         surchargeLine ? removeLine(surchargeLine.key) : Promise.resolve(),
-      ]);
+      ]).then(function () {
+        return addItem(VARIANT_ID);
+      }).then(function () {
+        hideSurchargeRemoveButton();
+        console.log("[Surcharge] eklendi, totalEur:", totalEur);
+      });
 
-      await addItem(VARIANT_ID);
-      console.log("[Surcharge] güncellendi, totalEur:", totalEur);
-      hideSurchargeRemoveButton();
-
-    } catch (e) {
+    }).catch(function (e) {
       console.error("[Surcharge] hata:", e);
-    } finally {
+    }).then(function () {
       _busy = false;
-      if (_pending) {
-        _pending = false;
-        setTimeout(sync, 300);
-      } else {
-        unblockCheckout();
-      }
-    }
+      unblockCheckout();
+    });
   }
 
-  sync();
+  // ============================================================
+  // POLLING — her POLL_INTERVAL ms'de sepeti kontrol et
+  // ============================================================
+  function startPolling() {
+    sync(); // ilk çalışma
+    setInterval(function () {
+      if (!_busy) sync();
+    }, POLL_INTERVAL);
+  }
 
-  document.addEventListener("cart:updated", sync);
-  document.addEventListener("cart:refresh", sync);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startPolling);
+  } else {
+    startPolling();
+  }
 
-  // Fetch intercept
-  // /cart/add veya /cart/change isteği tamamlandığında sync'i başlat
-  // ve response'u sync bitene kadar beklet — tema sync bitmeden checkout butonunu aktif edemez
-  const _origFetch = window.fetch;
-  window.fetch = async function (...args) {
-    const url = typeof args[0] === "string" ? args[0] : (args[0]?.url ?? "");
-    const isCartMutation = (
-      (url.includes("/cart/add") || url.includes("/cart/change") || url.includes("/cart/update")) &&
-      !url.includes("/apps/")
-    );
+  // Event-based tetikleyiciler (polling'e ek olarak, daha hızlı tepki için)
+  document.addEventListener("cart:updated", function () { if (!_busy) sync(); });
+  document.addEventListener("cart:refresh", function () { if (!_busy) sync(); });
 
-    const result = await _origFetch.apply(this, args);
-
-    if (isCartMutation && !_busy) {
-      // sync'i başlat ve bitmesini bekle, sonra response'u döndür
-      sync();
-      await waitForSync();
-    }
-
-    return result;
-  };
-
-  // XHR intercept — sync başlat ve response'u beklet
-  const _origOpen = XMLHttpRequest.prototype.open;
-  const _origSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function (_m, url) {
-    this._sUrl = url;
-    return _origOpen.apply(this, arguments);
-  };
-  XMLHttpRequest.prototype.send = function () {
-    if (this._sUrl &&
-      (this._sUrl.includes("/cart/add") || this._sUrl.includes("/cart/change") || this._sUrl.includes("/cart/update")) &&
-      !this._sUrl.includes("/apps/")) {
-      const xhr = this;
-      const _origOnReadyStateChange = xhr.onreadystatechange;
-      xhr.onreadystatechange = null;
-      this.addEventListener("load", async () => {
-        if (!_busy) {
-          sync();
-          await waitForSync();
-        }
-        if (_origOnReadyStateChange) _origOnReadyStateChange.call(xhr);
-      });
-    }
-    return _origSend.apply(this, arguments);
-  };
 })();
