@@ -1,32 +1,66 @@
 /**
  * Surcharge Cart Manager
- * - Polling ile sepeti kontrol eder, surcharge eksikse ekler
- * - Checkout tıklandığında surcharge'ı garantileyip yönlendirir
- * - Checkout butonuna hiç dokunulmaz (gidip gelme yok)
+ * - Sepet toplamının %X'i kadar surcharge ürününü yönetir
+ * - Checkout anında fiyat günceller ve sepete ekler
+ * - Polling: sadece sepet değişince çalışır, rate limit korumalı
  */
 (function () {
   "use strict";
 
-  var POLL_INTERVAL = 1500;
+  var POLL_INTERVAL = 10000; // 10 saniye
 
+  // ============================================================
+  // CONFIG
+  // ============================================================
   function getConfig() {
     var el = document.getElementById("surcharge-config");
     if (!el) return null;
     var variantId = el.getAttribute("data-variant-id");
-    if (!variantId) return null;
+    if (!variantId || variantId === "") return null;
     return {
-      variantId: variantId,
+      variantId: String(variantId),
       enabled: el.getAttribute("data-enabled") !== "false",
       percentage: parseFloat(el.getAttribute("data-percentage")) || 7,
     };
   }
 
+  // ============================================================
+  // CART API — tek sıralı kuyruk, eş zamanlı istek olmaz
+  // ============================================================
+  var _queue = Promise.resolve();
+
+  function enqueue(fn) {
+    _queue = _queue.then(fn).catch(function () {});
+    return _queue;
+  }
+
   function fetchJSON(url, options) {
-    return fetch(url, options).then(function (r) { return r.json(); });
+    return fetch(url, options).then(function (r) {
+      if (!r.ok) return Promise.reject(new Error("HTTP " + r.status));
+      return r.json();
+    });
   }
 
   function getCart() {
     return fetchJSON("/cart.js");
+  }
+
+  // Tüm surcharge satırlarını sil (duplicate varsa hepsini)
+  function removeAllSurchargeLines(lines, variantId) {
+    var surchargeLines = lines.filter(function (l) {
+      return String(l.variant_id) === variantId;
+    });
+    if (surchargeLines.length === 0) return Promise.resolve();
+    // Sırayla sil
+    return surchargeLines.reduce(function (p, line) {
+      return p.then(function () {
+        return fetchJSON("/cart/change.js", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: line.key, quantity: 0 }),
+        });
+      });
+    }, Promise.resolve());
   }
 
   function addItem(variantId) {
@@ -34,14 +68,6 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
-    });
-  }
-
-  function removeLine(lineKey) {
-    return fetchJSON("/cart/change.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: lineKey, quantity: 0 }),
     });
   }
 
@@ -62,8 +88,51 @@
   }
 
   // ============================================================
+  // CORE LOGIC — her zaman bu fonksiyon üzerinden geçilir
+  // ============================================================
+  function applySurcharge(cart, config) {
+    var lines = cart.items || [];
+    var VARIANT_ID = config.variantId;
+
+    var surchargeLines = lines.filter(function (l) {
+      return String(l.variant_id) === VARIANT_ID;
+    });
+    var realLines = lines.filter(function (l) {
+      return String(l.variant_id) !== VARIANT_ID;
+    });
+
+    var totalCents = realLines.reduce(function (sum, l) { return sum + l.line_price; }, 0);
+    var totalEur = totalCents / 100;
+
+    // Sepet boşsa surcharge'ı kaldır
+    if (totalEur <= 0) {
+      if (surchargeLines.length === 0) return Promise.resolve();
+      return removeAllSurchargeLines(surchargeLines, VARIANT_ID);
+    }
+
+    var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
+
+    // Tek surcharge var, fiyatı doğruysa hiçbir şey yapma
+    if (
+      surchargeLines.length === 1 &&
+      surchargeLines[0].price === expectedCents &&
+      surchargeLines[0].quantity === 1
+    ) {
+      return Promise.resolve();
+    }
+
+    // Fiyat güncelle, sonra eski satırları sil, sonra ekle (sırayla)
+    return updateSurchargePrice(totalEur)
+      .then(function () {
+        return removeAllSurchargeLines(surchargeLines, VARIANT_ID);
+      })
+      .then(function () {
+        return addItem(VARIANT_ID);
+      });
+  }
+
+  // ============================================================
   // CHECKOUT INTERCEPT
-  // Butona dokunmaz — tıklandığında surcharge garantilenip yönlendirilir
   // ============================================================
   document.addEventListener("click", function (e) {
     var anchor = e.target.closest('a[href*="/checkout"]');
@@ -71,39 +140,52 @@
     var target = anchor || btn;
     if (!target) return;
 
+    var config = getConfig();
+    if (!config || !config.enabled) return;
+
     e.preventDefault();
     e.stopImmediatePropagation();
 
     var href = anchor ? anchor.href : "/checkout";
 
-    ensureSurcharge().then(function () {
-      window.location.href = href;
+    enqueue(function () {
+      return getCart().then(function (cart) {
+        return applySurcharge(cart, config);
+      }).then(function () {
+        window.location.href = href;
+      }).catch(function (e) {
+        console.error("[Surcharge] checkout hata:", e);
+        window.location.href = href; // hata olsa da checkout'a git
+      });
     });
   }, true);
 
-  function ensureSurcharge() {
+  // ============================================================
+  // POLLING — sadece gerçek ürün değişince çalışır
+  // ============================================================
+  var _lastRealHash = null;
+
+  function realHash(lines, variantId) {
+    return lines
+      .filter(function (l) { return String(l.variant_id) !== variantId; })
+      .map(function (l) { return l.variant_id + ":" + l.quantity + ":" + l.line_price; })
+      .sort()
+      .join("|");
+  }
+
+  function syncPoll() {
     var config = getConfig();
-    if (!config || !config.enabled) return Promise.resolve();
+    if (!config || !config.enabled) return;
 
-    return getCart().then(function (cart) {
-      var lines = cart.items || [];
-      var VARIANT_ID = String(config.variantId);
-      var surchargeLine = lines.find(function (l) { return String(l.variant_id) === VARIANT_ID; });
-      var realLines = lines.filter(function (l) { return String(l.variant_id) !== VARIANT_ID; });
-      var totalCents = realLines.reduce(function (sum, l) { return sum + l.line_price; }, 0);
-      var totalEur = totalCents / 100;
-
-      if (totalEur <= 0) return Promise.resolve();
-
-      var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
-      var ok = surchargeLine && surchargeLine.price === expectedCents && surchargeLine.quantity === 1;
-      if (ok) return Promise.resolve();
-
-      return Promise.all([
-        updateSurchargePrice(totalEur),
-        surchargeLine ? removeLine(surchargeLine.key) : Promise.resolve(),
-      ]).then(function () {
-        return addItem(VARIANT_ID);
+    enqueue(function () {
+      return getCart().then(function (cart) {
+        var hash = realHash(cart.items || [], config.variantId);
+        if (hash === _lastRealHash) return; // değişmedi, çık
+        _lastRealHash = hash;
+        return applySurcharge(cart, config);
+      }).catch(function (e) {
+        if (e && e.message && e.message.indexOf("429") !== -1) return; // sessiz
+        console.error("[Surcharge] sync hata:", e);
       });
     });
   }
@@ -156,85 +238,20 @@
   _observer.observe(document.body, { childList: true, subtree: true });
 
   // ============================================================
-  // CORE SYNC (arka planda sessizce çalışır, butona dokunmaz)
+  // BAŞLAT
   // ============================================================
-  var _busy = false;
-  var _lastCartHash = null;
-
-  function cartHash(lines) {
-    var config = getConfig();
-    return lines
-      .filter(function (l) { return String(l.variant_id) !== String(config.variantId); })
-      .map(function (l) { return l.variant_id + ":" + l.quantity; })
-      .sort()
-      .join("|");
+  function start() {
+    syncPoll();
+    setInterval(syncPoll, POLL_INTERVAL);
   }
 
-  function sync() {
-    if (_busy) return;
-    var config = getConfig();
-    if (!config || !config.enabled) return;
-
-    _busy = true;
-
-    getCart().then(function (cart) {
-      var lines = cart.items || [];
-      var VARIANT_ID = String(config.variantId);
-      var surchargeLine = lines.find(function (l) { return String(l.variant_id) === VARIANT_ID; });
-      var realLines = lines.filter(function (l) { return String(l.variant_id) !== VARIANT_ID; });
-      var totalCents = realLines.reduce(function (sum, l) { return sum + l.line_price; }, 0);
-      var totalEur = totalCents / 100;
-      var currentHash = cartHash(lines);
-
-      if (totalEur <= 0) {
-        if (surchargeLine) {
-          return removeLine(surchargeLine.key).then(function () { _lastCartHash = null; });
-        }
-        return Promise.resolve();
-      }
-
-      var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
-      var priceCorrect = surchargeLine && surchargeLine.price === expectedCents && surchargeLine.quantity === 1;
-
-      if (priceCorrect && currentHash === _lastCartHash) {
-        return Promise.resolve();
-      }
-
-      _lastCartHash = currentHash;
-
-      return Promise.all([
-        updateSurchargePrice(totalEur),
-        surchargeLine ? removeLine(surchargeLine.key) : Promise.resolve(),
-      ]).then(function () {
-        return addItem(VARIANT_ID);
-      }).then(function () {
-        hideSurchargeRemoveButton();
-      });
-
-    }).catch(function (e) {
-      console.error("[Surcharge] hata:", e);
-    }).then(function () {
-      _busy = false;
-    });
-  }
-
-  // ============================================================
-  // POLLING
-  // ============================================================
-  function startPolling() {
-    sync();
-    setInterval(function () {
-      if (!_busy) sync();
-    }, POLL_INTERVAL);
-  }
+  document.addEventListener("cart:updated", syncPoll);
+  document.addEventListener("cart:refresh", syncPoll);
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startPolling);
+    document.addEventListener("DOMContentLoaded", start);
   } else {
-    startPolling();
+    start();
   }
-
-  document.addEventListener("cart:updated", function () { if (!_busy) sync(); });
-  document.addEventListener("cart:refresh", function () { if (!_busy) sync(); });
 
 })();
