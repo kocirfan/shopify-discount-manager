@@ -45,13 +45,9 @@
     return fetchJSON("/cart.js");
   }
 
-  // Tüm surcharge satırlarını sil (duplicate varsa hepsini)
-  function removeAllSurchargeLines(lines, variantId) {
-    var surchargeLines = lines.filter(function (l) {
-      return String(l.variant_id) === variantId;
-    });
+  // Mevcut surcharge satırlarını sil, bitince sepeti doğrula
+  function removeSurchargeLines(surchargeLines) {
     if (surchargeLines.length === 0) return Promise.resolve();
-    // Sırayla sil
     return surchargeLines.reduce(function (p, line) {
       return p.then(function () {
         return fetchJSON("/cart/change.js", {
@@ -63,11 +59,18 @@
     }, Promise.resolve());
   }
 
-  function addItem(variantId) {
-    return fetchJSON("/cart/add.js", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
+  // Silme sonrası sepeti doğrular, surcharge yoksa 1 adet ekler
+  function addSurchargeIfAbsent(variantId) {
+    return getCart().then(function (freshCart) {
+      var stillExists = (freshCart.items || []).some(function (l) {
+        return String(l.variant_id) === String(variantId);
+      });
+      if (stillExists) return Promise.resolve(); // silme henüz yansımadı, eklemiyoruz
+      return fetchJSON("/cart/add.js", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
+      });
     });
   }
 
@@ -107,7 +110,7 @@
     // Sepet boşsa surcharge'ı kaldır
     if (totalEur <= 0) {
       if (surchargeLines.length === 0) return Promise.resolve();
-      return removeAllSurchargeLines(surchargeLines, VARIANT_ID);
+      return removeSurchargeLines(surchargeLines);
     }
 
     var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
@@ -121,13 +124,15 @@
       return Promise.resolve();
     }
 
-    // Fiyat güncelle, sonra eski satırları sil, sonra ekle (sırayla)
+    // 1) Fiyatı güncelle (app API)
+    // 2) Mevcut tüm surcharge satırlarını sil
+    // 3) Temiz sepete 1 adet ekle
     return updateSurchargePrice(totalEur)
       .then(function () {
-        return removeAllSurchargeLines(surchargeLines, VARIANT_ID);
+        return removeSurchargeLines(surchargeLines);
       })
       .then(function () {
-        return addItem(VARIANT_ID);
+        return addSurchargeIfAbsent(VARIANT_ID);
       });
   }
 
