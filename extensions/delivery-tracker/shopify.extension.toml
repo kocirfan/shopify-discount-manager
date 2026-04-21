@@ -7,7 +7,7 @@ uid = "caa3dcb5-0be5-e68a-e0d3-ce240c7ce923d8c0fd7b"
 type = "ui_extension"
 
   [[extensions.targeting]]
-  target = "purchase.checkout.block.render"
+  target = "purchase.checkout.pickup-location-list.render-after"
   module = "./Checkout.jsx"
 
   [[extensions.targeting]]
