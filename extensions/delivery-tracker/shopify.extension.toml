@@ -10,9 +10,6 @@ type = "ui_extension"
   target = "purchase.checkout.pickup-location-list.render-after"
   module = "./Checkout.jsx"
 
-  [[extensions.targeting]]
-  target = "purchase.checkout.payment-method-list.render-before"
-  module = "./DiscountSummary.jsx"
 
   [extensions.capabilities]
   api_access = true
