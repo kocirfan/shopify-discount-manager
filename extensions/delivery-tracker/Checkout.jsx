@@ -329,27 +329,18 @@ import {
 export default extension(
   'purchase.checkout.block.render',
   (root, { deliveryGroups, applyAttributeChange }) => {
-    // ============================================================
-    // TESLİMAT TİPİ TAKİP EXTENSION'I
-    // Bu extension, checkout'ta teslimat yöntemi değişikliklerini izler
-    // ve cart attribute'unu ANLIK olarak günceller.
-    // ============================================================
-    //console.log('[DELIVERY TRACKER] ✅ Extension başlatıldı');
+    console.log('[DELIVERY TRACKER] ✅ Extension başlatıldı');
 
     let lastDeliveryType = null;
     let selectedDate = null;
-    let isUpdating = false; // Concurrent update koruması
+    let isUpdating = false;
 
     // UI container
     const container = root.createComponent(BlockStack, { spacing: 'base' });
     root.appendChild(container);
 
-    // ============================================================
-    // TESLİMAT SEÇİMİ İZLEYİCİSİ
-    // Delivery groups değiştiğinde ANLIK olarak attribute güncelle.
-    // ============================================================
     deliveryGroups.subscribe(async (groups) => {
-      //console.log('[DELIVERY TRACKER] 📦 Teslimat grupları değişti:', groups?.length || 0);
+      console.log('[DELIVERY TRACKER] 📦 Teslimat grupları değişti:', groups?.length || 0);
 
       // Concurrent update koruması
       if (isUpdating) {
@@ -404,7 +395,7 @@ export default extension(
         return;
       }
 
-      //console.log('[DELIVERY TRACKER] 🔍 Seçilen seçenek:', JSON.stringify(fullOption, null, 2));
+      console.log('[DELIVERY TRACKER] 🔍 Seçilen seçenek:', JSON.stringify(fullOption, null, 2));
 
       // Title'dan delivery type'ı çıkar
       const title = fullOption.title?.toLowerCase() || '';
