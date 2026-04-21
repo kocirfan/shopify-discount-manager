@@ -56,7 +56,10 @@ interface RunInput {
       };
     };
   };
-  shop?: { customerTagDiscountRules?: { value?: string } };
+  shop?: {
+    customerTagDiscountRules?: { value?: string };
+    excludedProducts?: { value?: string };
+  };
 }
 
 export function run(input: RunInput): FunctionResult {
@@ -173,15 +176,29 @@ export function run(input: RunInput): FunctionResult {
   // ============================================================
   // ÜRÜN BAZLI İNDİRİM UYGULA
   // Surcharge ürününe indirim uygulanmaz.
+  // Muaf tutulan ürünlere indirim uygulanmaz.
   // ============================================================
   const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
+
+  // Muaf ürün product ID listesini al
+  let excludedProductIds: string[] = [];
+  const excludedProductsJson = input.shop?.excludedProducts?.value;
+  if (excludedProductsJson) {
+    try {
+      excludedProductIds = JSON.parse(excludedProductsJson);
+    } catch {
+      // parse hatası olursa boş liste kullan
+    }
+  }
+
   const targets: { productVariant: { id: string } }[] = [];
 
   for (const line of input.cart.lines) {
     if (line.merchandise.__typename === "ProductVariant" && line.merchandise.id) {
       if (line.merchandise.id === SURCHARGE_VARIANT_ID) continue;
+      // Ürün muaf listesindeyse atla
+      if (line.merchandise.product?.id && excludedProductIds.includes(line.merchandise.product.id)) continue;
       targets.push({ productVariant: { id: line.merchandise.id } });
-      ////console.error(`📦 ${line.merchandise.product?.title || 'Ürün'}: %${matchedRule.discountPercentage}`);
     }
   }
 

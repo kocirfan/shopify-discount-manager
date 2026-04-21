@@ -60,5 +60,11 @@ query Input {
     ) {
       value
     }
+    excludedProducts: metafield(
+      namespace: "customer_tag_discount"
+      key: "excluded_product_ids"
+    ) {
+      value
+    }
   }
 }

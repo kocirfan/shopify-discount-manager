@@ -33,6 +33,7 @@ interface LoaderData {
   rules: CustomerTagRule[];
   discountActive: boolean;
   discountTitle: string;
+  excludedProductIds: string[];
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -41,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let rules: CustomerTagRule[] = [];
   let discountActive = false;
   let discountTitle = "Customer Tag Discount";
+  let excludedProductIds: string[] = [];
 
   try {
     // Kayıtlı kuralları metafield'dan al
@@ -61,6 +63,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             ) {
               value
             }
+            excludedProducts: metafield(
+              namespace: "customer_tag_discount"
+              key: "excluded_product_ids"
+            ) {
+              value
+            }
           }
         }
       `
@@ -69,6 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopData = await shopResponse.json();
     const savedRules = shopData.data.shop.customerTagDiscountRules?.value;
     const savedConfig = shopData.data.shop.customerTagDiscountConfig?.value;
+    const savedExcluded = shopData.data.shop.excludedProducts?.value;
 
     if (savedRules) {
       try {
@@ -85,6 +94,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         discountTitle = config.title || "Customer Tag Discount";
       } catch (error) {
         //console.error("Error parsing saved config:", error);
+      }
+    }
+
+    if (savedExcluded) {
+      try {
+        excludedProductIds = JSON.parse(savedExcluded);
+      } catch (error) {
+        //console.error("Error parsing excluded product ids:", error);
       }
     }
 
@@ -122,7 +139,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     //console.error("Error loading customer tag discount rules:", error);
   }
 
-  return { rules, discountActive, discountTitle };
+  return { rules, discountActive, discountTitle, excludedProductIds };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -147,6 +164,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (actionType === "saveRules") {
       const rules = formData.get("rules") as string;
       const discountTitle = formData.get("discountTitle") as string;
+      const excludedProductIds = formData.get("excludedProductIds") as string || "[]";
 
       // Kuralları ve config'i metafield'a kaydet
       const response = await admin.graphql(
@@ -180,6 +198,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 key: "config",
                 type: "json",
                 value: JSON.stringify({ title: discountTitle, active: true }),
+                ownerId: shopId,
+              },
+              {
+                namespace: "customer_tag_discount",
+                key: "excluded_product_ids",
+                type: "json",
+                value: excludedProductIds,
                 ownerId: shopId,
               },
             ],
@@ -428,12 +453,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function CustomerTagDiscounts() {
-  const { rules: initialRules, discountActive, discountTitle: initialTitle } = useLoaderData<LoaderData>();
+  const { rules: initialRules, discountActive, discountTitle: initialTitle, excludedProductIds: initialExcluded } = useLoaderData<LoaderData>();
   const actionData = useActionData<{ success: boolean; message: string }>();
   const submit = useSubmit();
 
   const [rules, setRules] = useState<CustomerTagRule[]>(initialRules);
   const [discountTitle, setDiscountTitle] = useState(initialTitle);
+  const [excludedProductIds, setExcludedProductIds] = useState<string[]>(initialExcluded);
+  const [newExcludedId, setNewExcludedId] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<CustomerTagRule | null>(null);
   const [formData, setFormData] = useState({
@@ -498,11 +525,23 @@ export default function CustomerTagDiscounts() {
     setRules(rules.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
   };
 
+  const handleAddExcludedId = () => {
+    const trimmed = newExcludedId.trim();
+    if (!trimmed || excludedProductIds.includes(trimmed)) return;
+    setExcludedProductIds([...excludedProductIds, trimmed]);
+    setNewExcludedId("");
+  };
+
+  const handleRemoveExcludedId = (id: string) => {
+    setExcludedProductIds(excludedProductIds.filter((e) => e !== id));
+  };
+
   const handleSaveAllRules = () => {
     const form = new FormData();
     form.append("actionType", "saveRules");
     form.append("rules", JSON.stringify(rules));
     form.append("discountTitle", discountTitle);
+    form.append("excludedProductIds", JSON.stringify(excludedProductIds));
     submit(form, { method: "post" });
   };
 
@@ -644,6 +683,49 @@ export default function CustomerTagDiscounts() {
                     <Button onClick={() => handleOpenModal()}>Eerste Regel Toevoegen</Button>
                   </BlockStack>
                 </Box>
+              )}
+            </BlockStack>
+          </Card>
+        </Layout.Section>
+
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h2">İndirimden Muaf Ürünler</Text>
+              <Text as="p" tone="subdued">
+                Aşağıdaki ürünlere hiçbir müşteri tag/metafield indirimi uygulanmaz. Shopify ürün ID'sini girin (örn. gid://shopify/Product/123456789).
+              </Text>
+              <InlineStack gap="200" blockAlign="end">
+                <div style={{ flexGrow: 1 }}>
+                  <TextField
+                    label="Ürün ID"
+                    value={newExcludedId}
+                    onChange={setNewExcludedId}
+                    autoComplete="off"
+                    placeholder="gid://shopify/Product/123456789"
+                  />
+                </div>
+                <Button onClick={handleAddExcludedId} disabled={!newExcludedId.trim()}>
+                  Ekle
+                </Button>
+              </InlineStack>
+              {excludedProductIds.length > 0 ? (
+                <BlockStack gap="200">
+                  {excludedProductIds.map((id) => (
+                    <InlineStack key={id} align="space-between" blockAlign="center">
+                      <Text as="span" breakWord>{id}</Text>
+                      <Button
+                        icon={DeleteIcon}
+                        onClick={() => handleRemoveExcludedId(id)}
+                        accessibilityLabel="Kaldır"
+                        tone="critical"
+                        size="slim"
+                      />
+                    </InlineStack>
+                  ))}
+                </BlockStack>
+              ) : (
+                <Text as="p" tone="subdued">Henüz muaf ürün eklenmedi.</Text>
               )}
             </BlockStack>
           </Card>
