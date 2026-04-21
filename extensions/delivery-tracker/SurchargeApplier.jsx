@@ -51,7 +51,5 @@ export default extension(
     lines.subscribe((currentLines) => {
       syncSurcharge(currentLines);
     });
-
-    syncSurcharge(lines.current);
   }
 );
