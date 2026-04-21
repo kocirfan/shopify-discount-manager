@@ -56,19 +56,8 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  // Delivery settings al
-  const settingsJson = input.shop?.deliveryDiscountSettings?.value;
-  if (!settingsJson) return emptyReturn;
-
-  let settings;
-  try {
-    settings = JSON.parse(settingsJson);
-  } catch {
-    return emptyReturn;
-  }
-
-  const pickupMethod = settings.find((m: any) => m.type === "pickup" && m.enabled);
-  if (!pickupMethod) return emptyReturn;
+  // Sabit pickup indirim değeri
+  const pickupMethod = { discountValue: 2 };
 
   // ============================================================
   // MÜŞTERİ İNDİRİMİNİ HESAPLA (HYBRID SİSTEM)
@@ -101,7 +90,7 @@ export function run(input: RunInput): FunctionResult {
 
       //console.error('🔍 Active Tags:', activeTags.join(', ') || 'YOK');
 
-      const rulesJson = input.shop?.customerTagDiscountRules?.value;
+      const rulesJson = (input as any).shop?.customerTagDiscountRules?.value;
 
       if (rulesJson && activeTags.length > 0) {
         try {
