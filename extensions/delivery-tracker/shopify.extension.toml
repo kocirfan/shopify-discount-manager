@@ -14,10 +14,6 @@ type = "ui_extension"
   target = "purchase.checkout.payment-method-list.render-before"
   module = "./DiscountSummary.jsx"
 
-  [[extensions.targeting]]
-  target = "purchase.checkout.actions.render-before"
-  module = "./SurchargeApplier.jsx"
-
   [extensions.capabilities]
   api_access = true
   network_access = false
