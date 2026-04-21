@@ -345,21 +345,6 @@ export default extension(
     root.appendChild(container);
 
     // ============================================================
-    // KURAL 5: CHECKOUT GÜNCELLİĞİ
-    // Checkout yüklendiğinde cart attribute'ları temizle.
-    // Bu, eski teslimat seçimine ait indirimlerin kalmasını engeller.
-    // ============================================================
-    applyAttributeChange({
-      type: 'updateAttribute',
-      key: 'selected_delivery_type',
-      value: ''
-    }).then(() => {
-      //console.log('[DELIVERY TRACKER] 🧹 Başlangıç temizliği: cart attribute sıfırlandı');
-    }).catch(err => {
-      //console.error('[DELIVERY TRACKER] ❌ Temizlik hatası:', err);
-    });
-
-    // ============================================================
     // TESLİMAT SEÇİMİ İZLEYİCİSİ
     // Delivery groups değiştiğinde ANLIK olarak attribute güncelle.
     // ============================================================
