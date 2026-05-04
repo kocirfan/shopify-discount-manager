@@ -40,6 +40,7 @@ export default extension(
     let selectedDate = getNextWeekday(tomorrow);
     let isPickup = false;
     let isMounted = false;
+    let lastDeliveryType = null; // applyAttributeChange'i yalnızca değişince çağır
 
     const container = root.createComponent(BlockStack, { spacing: 'base' });
 
@@ -86,27 +87,27 @@ export default extension(
     container.appendChild(datePicker);
 
     function updateUI() {
+      const deliveryType = isPickup ? 'pickup' : 'shipping';
+
       if (isPickup) {
         if (!isMounted) {
           root.appendChild(container);
           isMounted = true;
         }
-        // Pickup seçilince selected_delivery_type = "pickup" set et (function bunu okur)
-        api.applyAttributeChange({
-          type: 'updateAttribute',
-          key: 'selected_delivery_type',
-          value: 'pickup',
-        });
       } else {
         if (isMounted) {
           root.removeChild(container);
           isMounted = false;
         }
-        // Pickup değilse indirim uygulanmasın
+      }
+
+      // Yalnızca değer değişince applyAttributeChange çağır — sonsuz döngüyü önler
+      if (deliveryType !== lastDeliveryType) {
+        lastDeliveryType = deliveryType;
         api.applyAttributeChange({
           type: 'updateAttribute',
           key: 'selected_delivery_type',
-          value: 'shipping',
+          value: deliveryType,
         });
       }
     }
