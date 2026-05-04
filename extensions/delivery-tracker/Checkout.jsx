@@ -9,28 +9,6 @@ import {
 export default extension(
   'purchase.checkout.pickup-location-list.render-after',
   (root, api) => {
-    const container = root.createComponent(BlockStack, { spacing: 'base' });
-
-    const discountBanner = root.createComponent(Banner, {
-      status: 'success',
-      title: 'Pickup Korting!'
-    });
-
-    const discountText = root.createComponent(Text, {
-      size: 'medium',
-      emphasis: 'bold'
-    }, '2% extra korting voor afhalen!');
-
-    const dateHeading = root.createComponent(Text, {
-      size: 'base',
-      emphasis: 'bold'
-    }, 'Afhaaldatum');
-
-    const dateDescription = root.createComponent(Text, {
-      size: 'small',
-      appearance: 'subdued'
-    }, 'Selecteer uw gewenste afhaaldatum');
-
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -59,19 +37,51 @@ export default extension(
       return d.toISOString().split('T')[0];
     };
 
+    let selectedDate = getNextWeekday(tomorrow);
+
+    // İlk yüklemede tarihi attribute olarak kaydet
+    api.applyAttributeChange({
+      type: 'updateAttribute',
+      key: 'pickup_delivery_date',
+      value: selectedDate,
+    });
+
+    const container = root.createComponent(BlockStack, { spacing: 'base' });
+
+    const discountBanner = root.createComponent(Banner, {
+      status: 'success',
+      title: 'Pickup Korting!'
+    });
+
+    const discountText = root.createComponent(Text, {
+      size: 'medium',
+      emphasis: 'bold'
+    }, '2% extra korting voor afhalen!');
+
+    const dateHeading = root.createComponent(Text, {
+      size: 'base',
+      emphasis: 'bold'
+    }, 'Afhaaldatum');
+
+    const dateDescription = root.createComponent(Text, {
+      size: 'small',
+      appearance: 'subdued'
+    }, 'Selecteer uw gewenste afhaaldatum');
+
     const datePicker = root.createComponent(DatePicker, {
-      selected: getNextWeekday(tomorrow),
+      selected: selectedDate,
       disabled: disabledDates,
       disableDatesAfter: maxDate,
       disableDatesBefore: minDate,
       onChange: (date) => {
-        if (api.applyAttributeChange) {
-          api.applyAttributeChange({
-            type: 'updateAttribute',
-            key: 'pickup_delivery_date',
-            value: date
-          });
-        }
+        selectedDate = date;
+        // Seçili tarihi koru — checkout re-render sonrası kaybolmasın
+        datePicker.updateProps({ selected: selectedDate });
+        api.applyAttributeChange({
+          type: 'updateAttribute',
+          key: 'pickup_delivery_date',
+          value: date,
+        });
       }
     });
 
