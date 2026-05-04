@@ -40,7 +40,9 @@ export default extension(
     let selectedDate = getNextWeekday(tomorrow);
     let isPickup = false;
     let isMounted = false;
-    let lastDeliveryType = null; // applyAttributeChange'i yalnızca değişince çağır
+    let lastDeliveryType = null;
+    let lastSavedDate = null;
+    let dateDebounceTimer = null;
 
     const container = root.createComponent(BlockStack, { spacing: 'base' });
 
@@ -72,11 +74,17 @@ export default extension(
       onChange: (date) => {
         selectedDate = date;
         datePicker.updateProps({ selected: selectedDate });
-        api.applyAttributeChange({
-          type: 'updateAttribute',
-          key: 'pickup_delivery_date',
-          value: date,
-        });
+        // Debounce: aynı tarihi tekrar kaydetme, checkout re-render'ını azalt
+        if (date === lastSavedDate) return;
+        if (dateDebounceTimer) clearTimeout(dateDebounceTimer);
+        dateDebounceTimer = setTimeout(() => {
+          lastSavedDate = date;
+          api.applyAttributeChange({
+            type: 'updateAttribute',
+            key: 'pickup_delivery_date',
+            value: date,
+          });
+        }, 600);
       }
     });
 
