@@ -22,12 +22,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const customerId = url.searchParams.get("logged_in_customer_id");
   const shop = url.searchParams.get("shop");
 
-  console.log("[Customer Discount API] Request:", {
-    url: request.url,
-    shop,
-    customerId,
-    allParams: Object.fromEntries(url.searchParams.entries()),
-  });
+  // console.log("[Customer Discount API] Request:", {
+  //   url: request.url,
+  //   shop,
+  //   customerId,
+  //   allParams: Object.fromEntries(url.searchParams.entries()),
+  // });
 
   if (!shop) {
     return new Response(

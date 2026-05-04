@@ -21,11 +21,11 @@
   let lastFetch = 0;
 
   function log(...args) {
-    console.log('[CDP]', ...args);
+    //console.log('[CDP]', ...args);
   }
 
   function logError(...args) {
-    console.error('[CDP]', ...args);
+   // console.error('[CDP]', ...args);
   }
 
   async function fetchCustomerDiscount() {

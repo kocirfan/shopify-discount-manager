@@ -283,7 +283,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // ============================================================
 export default function ExtraChargePage() {
   useEffect(() => {
-    console.log("burada");
+   // console.log("burada");
   }, []);
 
   const { settings, isCartTransformActive, cartTransformId } =

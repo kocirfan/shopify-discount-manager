@@ -46,7 +46,7 @@ describe("run", () => {
 
   it("creates lineExpand with surcharge for a single product", () => {
     const result = run(baseInput as any);
-    console.log("RESULT:", JSON.stringify(result, null, 2));
+    //console.log("RESULT:", JSON.stringify(result, null, 2));
     expect(result.operations).toHaveLength(1);
     const op = result.operations[0] as any;
     expect(op.lineExpand).toBeDefined();
@@ -94,7 +94,7 @@ describe("run", () => {
     } as any;
 
     const result = run(input as any);
-    console.log("MULTI-LINE RESULT:", JSON.stringify(result, null, 2));
+    //console.log("MULTI-LINE RESULT:", JSON.stringify(result, null, 2));
     // subtotal = 200 + 50 = 250, surcharge = 250 * 0.05 = 12.50
     expect(result.operations).toHaveLength(1);
     const op = result.operations[0] as any;
