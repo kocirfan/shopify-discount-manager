@@ -38,13 +38,8 @@ export default extension(
     };
 
     let selectedDate = getNextWeekday(tomorrow);
-
-    // İlk yüklemede tarihi attribute olarak kaydet
-    api.applyAttributeChange({
-      type: 'updateAttribute',
-      key: 'pickup_delivery_date',
-      value: selectedDate,
-    });
+    let isPickup = false;
+    let isMounted = false;
 
     const container = root.createComponent(BlockStack, { spacing: 'base' });
 
@@ -75,7 +70,6 @@ export default extension(
       disableDatesBefore: minDate,
       onChange: (date) => {
         selectedDate = date;
-        // Seçili tarihi koru — checkout re-render sonrası kaybolmasın
         datePicker.updateProps({ selected: selectedDate });
         api.applyAttributeChange({
           type: 'updateAttribute',
@@ -90,6 +84,65 @@ export default extension(
     container.appendChild(dateHeading);
     container.appendChild(dateDescription);
     container.appendChild(datePicker);
-    root.appendChild(container);
+
+    function updateUI() {
+      if (isPickup) {
+        if (!isMounted) {
+          root.appendChild(container);
+          isMounted = true;
+        }
+        // Pickup seçilince selected_delivery_type = "pickup" set et (function bunu okur)
+        api.applyAttributeChange({
+          type: 'updateAttribute',
+          key: 'selected_delivery_type',
+          value: 'pickup',
+        });
+      } else {
+        if (isMounted) {
+          root.removeChild(container);
+          isMounted = false;
+        }
+        // Pickup değilse indirim uygulanmasın
+        api.applyAttributeChange({
+          type: 'updateAttribute',
+          key: 'selected_delivery_type',
+          value: 'shipping',
+        });
+      }
+    }
+
+    // Pickup seçilip seçilmediğini deliveryGroups ile izle
+    api.deliveryGroups.subscribe((groups) => {
+      if (!groups || groups.length === 0) {
+        isPickup = false;
+        updateUI();
+        return;
+      }
+
+      const firstGroup = groups[0];
+      const selected = firstGroup?.selectedDeliveryOption;
+
+      if (!selected) {
+        isPickup = false;
+        updateUI();
+        return;
+      }
+
+      const deliveryOptions = firstGroup?.deliveryOptions || [];
+      const fullOption = deliveryOptions.find(opt => opt.handle === selected.handle);
+      const title = fullOption?.title?.toLowerCase() || selected.title?.toLowerCase() || '';
+      const handle = fullOption?.handle?.toLowerCase() || selected.handle?.toLowerCase() || '';
+      const type = fullOption?.type?.toLowerCase() || '';
+
+      if (type) {
+        isPickup = type === 'pickup';
+      } else {
+        isPickup = title.includes('pickup') || handle.includes('pickup') ||
+                   title.includes('terheijdenseweg') || handle.includes('terheijdenseweg') ||
+                   title.includes('afhalen') || handle.includes('afhalen');
+      }
+
+      updateUI();
+    });
   }
 );
