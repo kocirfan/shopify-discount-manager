@@ -1,10 +1,14 @@
 {% comment %}
   Customer Discount Price Loader
   Bu block, theme'e eklendiğinde müşteri indirimlerini fiyatlara uygular.
-  
+
   Theme Editor'da "Customer Discount Price Display" olarak görünür.
   Header veya Footer bölümüne eklenmeli.
 {% endcomment %}
+
+<script>
+  console.log('[CDP-LIQUID] Block render edildi. customer:', {{ customer | json | default: 'null' }}, '| customer.id:', {{ customer.id | default: 0 }});
+</script>
 
 {% if customer %}
   <script id="customer-discount-data" type="application/json">
