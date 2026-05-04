@@ -22,7 +22,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const customerId = url.searchParams.get("logged_in_customer_id");
   const shop = url.searchParams.get("shop");
 
-  //console.log("[Customer Discount API] Request:", { customerId, shop, url: request.url });
+  console.log("[Customer Discount API] Request:", {
+    url: request.url,
+    shop,
+    customerId,
+    allParams: Object.fromEntries(url.searchParams.entries()),
+  });
 
   if (!shop) {
     return new Response(
@@ -52,7 +57,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const result = await unauthenticated.admin(shop);
     admin = result.admin;
   } catch (error) {
-    //console.error("[Customer Discount API] Admin session error:", error);
+    console.error("[Customer Discount API] Admin session error:", error instanceof Error ? error.message : error);
     return new Response(
       JSON.stringify({
         discountPercentage: 0,
