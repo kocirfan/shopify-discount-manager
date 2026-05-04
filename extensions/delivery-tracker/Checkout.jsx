@@ -74,7 +74,6 @@ export default extension(
       onChange: (date) => {
         selectedDate = date;
         datePicker.updateProps({ selected: selectedDate });
-        // Debounce: aynı tarihi tekrar kaydetme, checkout re-render'ını azalt
         if (date === lastSavedDate) return;
         if (dateDebounceTimer) clearTimeout(dateDebounceTimer);
         dateDebounceTimer = setTimeout(() => {
@@ -84,7 +83,7 @@ export default extension(
             key: 'pickup_delivery_date',
             value: date,
           });
-        }, 600);
+        }, 1500);
       }
     });
 
