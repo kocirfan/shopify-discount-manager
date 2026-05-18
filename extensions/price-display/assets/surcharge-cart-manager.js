@@ -36,7 +36,11 @@
 
   function fetchJSON(url, options) {
     return fetch(url, options).then(function (r) {
-      if (!r.ok) return Promise.reject(new Error("HTTP " + r.status));
+      if (!r.ok) {
+        return r.text().then(function (body) {
+          return Promise.reject(new Error("HTTP " + r.status + " — " + body.slice(0, 200)));
+        });
+      }
       return r.json();
     });
   }
