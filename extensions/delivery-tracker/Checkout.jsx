@@ -8,7 +8,7 @@ import {
 
 export default extension(
   'purchase.checkout.pickup-location-list.render-after',
-  (root, { applyAttributeChange, deliveryGroups, cost, discountAllocations }) => {
+  (root, { applyAttributeChange, deliveryGroups, lines }) => {
     const api = { applyAttributeChange, deliveryGroups };
     const today = new Date();
     const tomorrow = new Date(today);
@@ -52,24 +52,26 @@ export default extension(
       title: 'Pickup Korting!'
     });
 
-    let pickupSaving = 0;
+    let linesSubtotal = 0;
 
     const discountText = root.createComponent(Text, {
       size: 'medium',
       emphasis: 'bold'
     }, '2% extra korting voor afhalen!');
 
-    discountAllocations.subscribe((allocations) => {
-      const total = (allocations || []).reduce((sum, a) => {
-        return sum + parseFloat(a.discountedAmount?.amount || 0);
+    // Cart lines'dan gerçek indirimli fiyatları toplayarak subtotal hesapla
+    lines.subscribe((cartLines) => {
+      linesSubtotal = (cartLines || []).reduce((sum, line) => {
+        const price = parseFloat(line.cost?.totalAmount?.amount || 0);
+        return sum + price;
       }, 0);
-      pickupSaving = total;
+      console.log('[CHECKOUT] lines subtotal:', linesSubtotal);
       updateDiscountText();
     });
 
     function updateDiscountText() {
-      if (pickupSaving > 0) {
-        const saving = pickupSaving.toFixed(2).replace('.', ',');
+      if (linesSubtotal > 0) {
+        const saving = (linesSubtotal * 0.02).toFixed(2).replace('.', ',');
         discountText.replaceChildren(`2% extra korting voor afhalen — bespaar € ${saving}!`);
       } else {
         discountText.replaceChildren('2% extra korting voor afhalen!');
