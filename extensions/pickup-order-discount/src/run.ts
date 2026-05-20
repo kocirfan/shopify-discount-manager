@@ -116,16 +116,20 @@ export function run(input: RunInput): FunctionResult {
 
   // ============================================================
   // İNDİRİMLİ SUBTOTAL HESAPLA
-  // Önce tag indirimini uygula, sonra pickup indirimini hesapla
+  // Cart lines'dan gerçek (tag indirimi uygulanmış) fiyatları topla
+  // excludedVariantId'yi hariç tut (Ordertoeslag)
   // ============================================================
-  const originalSubtotal = parseFloat(cart.cost.subtotalAmount.amount);
+  const excludedVariantId = "gid://shopify/ProductVariant/61571547791690";
 
-  // Tag indirimi uygulandıktan sonraki fiyat
-  const afterTagDiscount = originalSubtotal * (1 - tagDiscountPercent / 100);
+  const linesSubtotal = cart.lines.reduce((sum: number, line: any) => {
+    if (line.merchandise?.id === excludedVariantId) return sum;
+    const price = parseFloat(line.cost.amountPerQuantity.amount) * line.quantity;
+    return sum + price;
+  }, 0);
 
-  // Pickup indirimi: indirimli fiyat üzerinden
+  // Pickup indirimi: cart lines subtotal üzerinden
   const pickupDiscountPercent = pickupMethod.discountValue;
-  const pickupDiscountAmount = (afterTagDiscount * (pickupDiscountPercent / 100)).toFixed(2);
+  const pickupDiscountAmount = (linesSubtotal * (pickupDiscountPercent / 100)).toFixed(2);
 
   //console.error('📊 Pickup İndirim Hesabı:');
   //console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
