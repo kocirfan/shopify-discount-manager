@@ -95,25 +95,19 @@ export function run(input: RunInput): FunctionResult {
 
   // ============================================================
   // DOĞRU BASE HESAPLA
-  // subtotalAmount = orijinal fiyatlar toplamı (tag indirimi öncesi)
-  // Ordertoeslag hariç tutulacak
-  // tagDiscountPercent ile indirimli fiyatı hesapla
+  // Ordertoeslag hariç, tüm lines'ın orijinal fiyatlarını topla
+  // Sonra tag indirimini uygula → pickup %2'nin uygulanacağı base
   // ============================================================
-  const originalSubtotal = parseFloat(cart.cost.subtotalAmount.amount);
-
-  // Ordertoeslag'ın orijinal fiyatını lines'dan bul
-  const ordertoeslag = (cart as any).lines.find(
-    (l: any) => l.merchandise?.id === EXCLUDED_VARIANT_ID
+  const linesWithoutToeslag = (cart as any).lines.filter(
+    (l: any) => l.merchandise?.id !== EXCLUDED_VARIANT_ID
   );
-  const ordertoeslagPrice = ordertoeslag
-    ? parseFloat(ordertoeslag.cost.amountPerQuantity.amount) * ordertoeslag.quantity
-    : 0;
 
-  // Ordertoeslag hariç orijinal subtotal
-  const subtotalWithoutToeslag = originalSubtotal - ordertoeslagPrice;
+  const originalBaseWithoutToeslag = linesWithoutToeslag.reduce((sum: number, line: any) => {
+    return sum + parseFloat(line.cost.amountPerQuantity.amount) * line.quantity;
+  }, 0);
 
-  // Tag indirimi uygulanmış değer (pickup %2'nin uygulanacağı base)
-  const discountedBase = subtotalWithoutToeslag * (1 - tagDiscountPercent / 100);
+  // Tag indirimi uygulanmış değer
+  const discountedBase = originalBaseWithoutToeslag * (1 - tagDiscountPercent / 100);
 
   const pickupDiscountAmount = (discountedBase * 0.02).toFixed(2);
 
