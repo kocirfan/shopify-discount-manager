@@ -32,19 +32,31 @@ export function run(input: RunInput): FunctionRunResult {
     };
   }
 
-  // Calculate 2% discount
-  const subtotal = parseFloat(cart.cost.subtotalAmount.amount);
-  const discountAmount = (subtotal * (DISCOUNT_PERCENTAGE / 100)).toFixed(2);
+  // Ordertoeslag variant ID - pickup indiriminden hariç tut
+  const excludedVariantId = "gid://shopify/ProductVariant/61571547791690";
+
+  const targets = cart.lines
+    .filter((line) => {
+      if (line.merchandise.__typename !== "ProductVariant") return false;
+      if ((line.merchandise as any).id === excludedVariantId) return false;
+      return true;
+    })
+    .map((line) => ({ cartLine: { id: line.id } }));
+
+  if (targets.length === 0) {
+    return { discounts: [] };
+  }
 
   return {
     discounts: [
       {
         value: {
-          fixedAmount: {
-            amount: discountAmount,
+          percentage: {
+            value: DISCOUNT_PERCENTAGE,
           },
         },
-        message: `${DISCOUNT_PERCENTAGE}% korting bij afhalen`,
+        targets,
+        message: `${DISCOUNT_PERCENTAGE}% Pickup Korting`,
       },
     ],
   };
