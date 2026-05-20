@@ -8,7 +8,8 @@ import {
 
 export default extension(
   'purchase.checkout.pickup-location-list.render-after',
-  (root, api) => {
+  (root, { applyAttributeChange, deliveryGroups, cost }) => {
+    const api = { applyAttributeChange, deliveryGroups };
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -51,10 +52,34 @@ export default extension(
       title: 'Pickup Korting!'
     });
 
+    let subtotal = 0;
+
     const discountText = root.createComponent(Text, {
       size: 'medium',
       emphasis: 'bold'
     }, '2% extra korting voor afhalen!');
+
+    cost.subscribe((costData) => {
+      console.log('[CHECKOUT] costData keys:', JSON.stringify({
+        subtotalAmount: costData?.subtotalAmount?.amount,
+        totalAmount: costData?.totalAmount?.amount,
+        totalShippingAmount: costData?.totalShippingAmount?.amount,
+      }));
+      const base = costData?.subtotalAmount?.amount ?? costData?.totalAmount?.amount;
+      if (base) {
+        subtotal = parseFloat(base);
+        updateDiscountText();
+      }
+    });
+
+    function updateDiscountText() {
+      if (subtotal > 0) {
+        const saving = (subtotal * 0.02).toFixed(2).replace('.', ',');
+        discountText.replaceChildren(`2% extra korting voor afhalen — bespaar € ${saving}!`);
+      } else {
+        discountText.replaceChildren('2% extra korting voor afhalen!');
+      }
+    }
 
     const dateHeading = root.createComponent(Text, {
       size: 'base',
