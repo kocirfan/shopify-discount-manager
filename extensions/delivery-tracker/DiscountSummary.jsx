@@ -79,8 +79,18 @@ export default extension(
 
     // Total değişimini izle
     cost.subscribe((costData) => {
-      if (costData?.totalAmount?.amount) {
-        currentTotal = parseFloat(costData.totalAmount.amount);
+      console.log('[DISCOUNT SUMMARY] costData:', JSON.stringify({
+        subtotalAmount: costData?.subtotalAmount?.amount,
+        totalAmount: costData?.totalAmount?.amount,
+        totalShippingAmount: costData?.totalShippingAmount?.amount,
+        totalTaxAmount: costData?.totalTaxAmount?.amount,
+        totalDutyAmount: costData?.totalDutyAmount?.amount,
+      }));
+
+      // subtotalAmount: Cart Transform indirimleri uygulandıktan sonraki satır toplamı (kargo hariç)
+      const base = costData?.subtotalAmount?.amount ?? costData?.totalAmount?.amount;
+      if (base) {
+        currentTotal = parseFloat(base);
         updateUI();
       }
     });
