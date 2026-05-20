@@ -59,15 +59,10 @@ export default extension(
       emphasis: 'bold'
     }, '2% extra korting voor afhalen!');
 
-    cost.subscribe((costData) => {
-      console.log('[CHECKOUT] costData keys:', JSON.stringify({
-        subtotalAmount: costData?.subtotalAmount?.amount,
-        totalAmount: costData?.totalAmount?.amount,
-        totalShippingAmount: costData?.totalShippingAmount?.amount,
-      }));
-      const base = costData?.subtotalAmount?.amount ?? costData?.totalAmount?.amount;
-      if (base) {
-        subtotal = parseFloat(base);
+    cost.subtotalAmount.subscribe((money) => {
+      console.log('[CHECKOUT] subtotalAmount:', money?.amount);
+      if (money?.amount) {
+        subtotal = parseFloat(money.amount);
         updateDiscountText();
       }
     });
