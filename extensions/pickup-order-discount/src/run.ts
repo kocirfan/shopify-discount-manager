@@ -116,13 +116,15 @@ export function run(input: RunInput): FunctionResult {
 
   // ============================================================
   // SUBTOTAL HESAPLA
-  // subtotalAmount zaten tag indirimi uygulanmış fiyatları içeriyor
-  // Doğrudan subtotalAmount üzerinden %2 hesapla
+  // cart.lines üzerinden indirimli fiyatları topla (tag indirimi sonrası)
   // ============================================================
-  const subtotal = parseFloat(cart.cost.subtotalAmount.amount);
+  const linesSubtotal = cart.lines.reduce((sum: number, line: any) => {
+    const price = parseFloat(line.cost.amountPerQuantity.amount) * line.quantity;
+    return sum + price;
+  }, 0);
 
   const pickupDiscountPercent = pickupMethod.discountValue;
-  const pickupDiscountAmount = (subtotal * (pickupDiscountPercent / 100)).toFixed(2);
+  const pickupDiscountAmount = (linesSubtotal * (pickupDiscountPercent / 100)).toFixed(2);
 
   return {
     discounts: [
