@@ -26,8 +26,14 @@ export function run(input: RunInput): FunctionResult {
     return emptyReturn;
   }
 
-  const originalSubtotal = parseFloat(cart.cost.subtotalAmount.amount);
-  const pickupDiscountAmount = (originalSubtotal * 0.02).toFixed(2);
+  // Ordertoeslag hariç, lines üzerinden indirimli subtotal hesapla
+  const excludedVariantId = "gid://shopify/ProductVariant/61571547791690";
+  const linesSubtotal = (cart as any).lines.reduce((sum: number, line: any) => {
+    if (line.merchandise?.id === excludedVariantId) return sum;
+    return sum + parseFloat(line.cost.amountPerQuantity.amount) * line.quantity;
+  }, 0);
+
+  const pickupDiscountAmount = (linesSubtotal * 0.02).toFixed(2);
 
   return {
     discounts: [
