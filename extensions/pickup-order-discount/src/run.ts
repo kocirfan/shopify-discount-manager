@@ -131,11 +131,16 @@ export function run(input: RunInput): FunctionResult {
   const pickupDiscountPercent = pickupMethod.discountValue;
   const pickupDiscountAmount = (linesSubtotal * (pickupDiscountPercent / 100)).toFixed(2);
 
-  //console.error('📊 Pickup İndirim Hesabı:');
-  //console.error('   Orijinal subtotal:', originalSubtotal.toFixed(2));
-  //console.error('   Tag indirimi: %' + tagDiscountPercent);
-  //console.error('   Tag sonrası:', afterTagDiscount.toFixed(2));
-  //console.error('   Pickup indirimi: %' + pickupDiscountPercent + ' = ' + pickupDiscountAmount);
+  console.error('📊 Pickup İndirim Hesabı:');
+  console.error('   Cart lines:', JSON.stringify(cart.lines.map((l: any) => ({
+    id: l.merchandise?.id,
+    qty: l.quantity,
+    price: l.cost.amountPerQuantity.amount
+  }))));
+  console.error('   linesSubtotal:', linesSubtotal.toFixed(2));
+  console.error('   Shopify subtotalAmount:', cart.cost.subtotalAmount.amount);
+  console.error('   tagDiscountPercent:', tagDiscountPercent);
+  console.error('   pickupDiscountAmount:', pickupDiscountAmount);
 
   return {
     discounts: [
