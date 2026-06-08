@@ -20,7 +20,7 @@
     return {
       variantId: String(variantId),
       enabled: el.getAttribute("data-enabled") !== "false",
-      percentage: parseFloat(el.getAttribute("data-percentage")) || 7,
+      percentage: parseFloat(el.getAttribute("data-percentage")) || 5,
     };
   }
 

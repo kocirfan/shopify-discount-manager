@@ -5,7 +5,7 @@ import type {
 
 const NO_CHANGES: CartTransformRunResult = { operations: [] };
 const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
-const DEFAULT_RATE = 0.07;
+const DEFAULT_RATE = 0.05;
 
 export function run(input: CartTransformRunInput): CartTransformRunResult {
   const lines = input.cart.lines;
