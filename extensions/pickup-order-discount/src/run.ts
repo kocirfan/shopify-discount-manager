@@ -28,6 +28,13 @@ export function run(input: RunInput): FunctionResult {
           percentage: { value: "2.0" },
         },
         message: "%2 Pickup Korting",
+        targets: [
+          {
+            orderSubtotal: {
+              excludedVariantIds: [],
+            },
+          },
+        ],
       },
     ],
     discountApplicationStrategy: "FIRST",
