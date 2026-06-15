@@ -14,6 +14,8 @@ type FunctionResult = {
   discountApplicationStrategy: "FIRST" | "MAXIMUM";
 };
 
+const EXCLUDED_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
+
 export function run(input: RunInput): FunctionResult {
   const cart = input.cart;
   const emptyReturn: FunctionResult = {
@@ -21,10 +23,9 @@ export function run(input: RunInput): FunctionResult {
     discountApplicationStrategy: "FIRST",
   };
 
-  // TEST: attribute kontrolü geçici olarak kapatıldı
-  // if (cart.attribute?.value !== "pickup") {
-  //   return emptyReturn;
-  // }
+  if (cart.attribute?.value !== "pickup") {
+    return emptyReturn;
+  }
 
   return {
     discounts: [
@@ -33,6 +34,13 @@ export function run(input: RunInput): FunctionResult {
           percentage: { value: "2.0" },
         },
         message: "%2 Pickup Korting",
+        targets: [
+          {
+            orderSubtotal: {
+              excludedVariantIds: [EXCLUDED_VARIANT_ID],
+            },
+          },
+        ],
       },
     ],
     discountApplicationStrategy: "FIRST",
