@@ -21,10 +21,6 @@ export function run(input: RunInput): FunctionResult {
     discountApplicationStrategy: "FIRST",
   };
 
-  if (cart.attribute?.value !== "pickup") {
-    return emptyReturn;
-  }
-
   return {
     discounts: [
       {
