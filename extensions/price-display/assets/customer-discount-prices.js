@@ -109,6 +109,19 @@
 
   async function updateAllPrices() {
     log('updateAllPrices() başladı');
+
+    // Sayfadaki ürünün nodiscount tag'i varsa fiyat güncelleme
+    const dataEl = document.getElementById('customer-discount-data');
+    if (dataEl) {
+      try {
+        const pageData = JSON.parse(dataEl.textContent);
+        if (pageData.pageProductHasNoDiscount) {
+          log('Bu ürün nodiscount tag\'ine sahip, fiyat güncellenmeyecek.');
+          return;
+        }
+      } catch (e) {}
+    }
+
     const discount = await fetchCustomerDiscount();
 
     if (!discount || discount.discountPercentage <= 0) {
@@ -134,8 +147,19 @@
     log('updateAllPrices() tamamlandı. Güncellenen:', document.querySelectorAll('[data-cdp-processed]').length, 'element');
   }
 
+  function isPageProductNoDiscount() {
+    const dataEl = document.getElementById('customer-discount-data');
+    if (!dataEl) return false;
+    try {
+      return JSON.parse(dataEl.textContent).pageProductHasNoDiscount === true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function observeDOMChanges() {
     const observer = new MutationObserver(() => {
+      if (isPageProductNoDiscount()) return;
       const unprocessed = document.querySelectorAll('.money:not([data-cdp-processed])');
       if (unprocessed.length > 0 && customerDiscount?.discountPercentage > 0) {
         log('MutationObserver: yeni', unprocessed.length, 'element bulundu, güncelleniyor...');

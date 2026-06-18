@@ -17,6 +17,7 @@
       "customerId": {{ customer.id | json }},
       "customerEmail": {{ customer.email | json }},
       "customerTags": {{ customer.tags | json }},
+      "pageProductHasNoDiscount": {{ product.tags | join: ',' | downcase | contains: 'nodiscount' | json }},
       "settings": {
         "showOriginalPrice": {{ block.settings.show_original_price | json }},
         "showDiscountBadge": {{ block.settings.show_discount_badge | json }},
