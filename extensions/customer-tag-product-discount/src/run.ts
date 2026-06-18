@@ -38,7 +38,7 @@ interface CartLine {
   merchandise: {
     __typename: string;
     id?: string;
-    product?: { id: string; title: string };
+    product?: { id: string; title: string; hasAnyTag?: boolean };
   };
   cost: {
     amountPerQuantity: { amount: string; currencyCode: string };
@@ -198,6 +198,8 @@ export function run(input: RunInput): FunctionResult {
       if (line.merchandise.id === SURCHARGE_VARIANT_ID) continue;
       // Ürün muaf listesindeyse atla
       if (line.merchandise.product?.id && excludedProductIds.includes(line.merchandise.product.id)) continue;
+      // "nodiscount" tag'i olan ürünlere indirim uygulanmaz
+      if (line.merchandise.product?.hasAnyTag) continue;
       targets.push({ productVariant: { id: line.merchandise.id } });
     }
   }

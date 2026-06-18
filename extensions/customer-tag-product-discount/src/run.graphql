@@ -10,6 +10,7 @@ query Input {
           product {
             id
             title
+            hasAnyTag(tags: ["nodiscount"])
           }
         }
       }
