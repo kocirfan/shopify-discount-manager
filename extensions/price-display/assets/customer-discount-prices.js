@@ -77,10 +77,31 @@
     return '€' + whole + ',' + parts[1];
   }
 
+  let _nodiscountHandles = null;
+  function getNoDiscountHandles() {
+    if (_nodiscountHandles !== null) return _nodiscountHandles;
+    const dataEl = document.getElementById('customer-discount-data');
+    if (!dataEl) { _nodiscountHandles = []; return _nodiscountHandles; }
+    try {
+      _nodiscountHandles = JSON.parse(dataEl.textContent).nodiscountHandles || [];
+    } catch (e) { _nodiscountHandles = []; }
+    return _nodiscountHandles;
+  }
+
   function updatePriceElement(element, discountPercent) {
     if (element.hasAttribute(CONFIG.processedAttr)) {
       log('Element zaten işlenmiş, atlanıyor:', element);
       return;
+    }
+
+    // Ürün kartında data-product handle'ı varsa ve nodiscount listesindeyse atla
+    const cardWrapper = element.closest('[data-product]');
+    if (cardWrapper) {
+      const handle = cardWrapper.getAttribute('data-product');
+      if (handle && getNoDiscountHandles().includes(handle)) {
+        log('nodiscount ürün kartı, atlanıyor:', handle);
+        return;
+      }
     }
 
     const text = element.textContent.trim();
@@ -185,6 +206,7 @@
 
   function init() {
     log('Customer Discount Price Display başlatılıyor... readyState:', document.readyState);
+    _nodiscountHandles = null; // sayfa yüklendiğinde cache'i sıfırla
     addStyles();
     updateAllPrices();
     observeDOMChanges();

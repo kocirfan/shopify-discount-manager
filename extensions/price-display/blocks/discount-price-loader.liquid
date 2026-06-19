@@ -19,6 +19,17 @@
       "customerTags": {{ customer.tags | json }},
       {% assign _tag_str = product.tags | join: ',' | downcase %}
       "pageProductHasNoDiscount": {% if _tag_str contains 'nodiscount' %}true{% else %}false{% endif %},
+      {% assign _nodiscount_handles = "" %}
+      {% if collection %}
+        {% for p in collection.products %}
+          {% assign _p_tags = p.tags | join: ',' | downcase %}
+          {% if _p_tags contains 'nodiscount' %}
+            {% unless _nodiscount_handles == "" %}{% assign _nodiscount_handles = _nodiscount_handles | append: ',' %}{% endunless %}
+            {% assign _nodiscount_handles = _nodiscount_handles | append: p.handle %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      "nodiscountHandles": {{ _nodiscount_handles | split: ',' | json }},
       "settings": {
         "showOriginalPrice": {{ block.settings.show_original_price | json }},
         "showDiscountBadge": {{ block.settings.show_discount_badge | json }},
