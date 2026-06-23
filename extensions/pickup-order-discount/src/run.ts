@@ -21,6 +21,33 @@ export function run(input: RunInput): FunctionResult {
     discountApplicationStrategy: "FIRST",
   };
 
+  // Önce cart attribute'dan delivery type'ı kontrol et (Checkout UI tarafından set edilir)
+  const selectedDeliveryType = (cart as any).attribute?.value;
+  if (selectedDeliveryType) {
+    if (selectedDeliveryType !== "pickup") return emptyReturn;
+  } else {
+    // Cart attribute yoksa deliveryGroups'tan tespit et
+    const deliveryGroups = (cart as any).deliveryGroups || [];
+    if (deliveryGroups.length === 0) return emptyReturn;
+
+    const firstGroup = deliveryGroups[0];
+    const selected = firstGroup?.selectedDeliveryOption;
+    if (!selected) return emptyReturn;
+
+    const title = (selected.title || "").toLowerCase();
+    const handle = (selected.handle || "").toLowerCase();
+    const isPickup =
+      title.includes("pickup") ||
+      title.includes("afhalen") ||
+      title.includes("abholung") ||
+      title.includes("terheijdenseweg") ||
+      handle.includes("pickup") ||
+      handle.includes("afhalen") ||
+      handle.includes("terheijdenseweg");
+
+    if (!isPickup) return emptyReturn;
+  }
+
   return {
     discounts: [
       {
