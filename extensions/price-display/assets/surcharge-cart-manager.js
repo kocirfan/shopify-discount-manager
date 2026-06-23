@@ -108,7 +108,7 @@
       return String(l.variant_id) !== VARIANT_ID;
     });
 
-    var totalCents = realLines.reduce(function (sum, l) { return sum + l.line_price; }, 0);
+    var totalCents = realLines.reduce(function (sum, l) { return sum + l.original_line_price; }, 0);
     var totalEur = totalCents / 100;
 
     // Sepet boşsa surcharge'ı kaldır
