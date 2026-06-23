@@ -120,13 +120,20 @@ export function run(input: any) {
 
   //console.error('✅ MATCHED:', matchedMethod.name, '| Discount:', matchedMethod.discountValue);
 
+  const SURCHARGE_VARIANT_ID = 'gid://shopify/ProductVariant/61571547791690';
+
+  // ORDERTOESLAG (surcharge) içeren satırları hariç tut
+  const eligibleLines = input.cart.lines.filter((line: any) =>
+    line.merchandise?.id !== SURCHARGE_VARIANT_ID
+  );
+
+  if (!eligibleLines.length) return emptyReturn;
+
   // Apply discount to each cart line (Product Discount)
   // This applies customer segment discounts for ALL delivery methods
   // Cart Transform will add additional 2% discount on top for pickup
   // This will work on top of Sami Wholesale's order discount
-  const discounts = input.cart.lines.map((line: any) => {
-    //console.error(`📦 Applying ${matchedMethod.discountValue}% to line ${line.id}`);
-
+  const discounts = eligibleLines.map((line: any) => {
     return {
       message: `${matchedMethod.discountValue}% korting - ${matchedMethod.name}`,
       targets: [{
