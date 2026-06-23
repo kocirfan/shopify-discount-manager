@@ -108,7 +108,20 @@
       return String(l.variant_id) !== VARIANT_ID;
     });
 
-    var totalCents = realLines.reduce(function (sum, l) { return sum + l.original_line_price; }, 0);
+    // line_price = müşteri tag indirimi uygulanmış fiyat (doğru baz)
+    // Ama checkout'tan dönünce pickup %2 indirimi de line_price'a yansımış olabilir.
+    // discount_allocations içindeki pickup discount'ını geri ekleyerek temiz baz fiyatı buluyoruz.
+    var totalCents = realLines.reduce(function (sum, l) {
+      var base = l.line_price;
+      var allocations = l.discount_allocations || [];
+      for (var i = 0; i < allocations.length; i++) {
+        var title = (allocations[i].discount_application && allocations[i].discount_application.title || '').toLowerCase();
+        if (title.indexOf('pickup') !== -1 || title.indexOf('korting') !== -1) {
+          base += allocations[i].amount;
+        }
+      }
+      return sum + base;
+    }, 0);
     var totalEur = totalCents / 100;
 
     // Sepet boşsa surcharge'ı kaldır
