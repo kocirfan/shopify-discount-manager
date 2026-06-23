@@ -48,11 +48,7 @@ export function run(input: RunInput): FunctionResult {
     if (!isPickup) return emptyReturn;
   }
 
-  const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
-
-  // ORDERTOESLAG (surcharge) içeren satırları hariç tut
   const targets = ((cart as any).lines || [])
-    .filter((line: any) => line.merchandise?.id !== SURCHARGE_VARIANT_ID)
     .map((line: any) => ({ productVariant: { id: line.merchandise.id } }));
 
   if (targets.length === 0) return emptyReturn;
