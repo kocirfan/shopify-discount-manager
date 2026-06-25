@@ -1,7 +1,6 @@
 import type {
   CartTransformRunInput,
   CartTransformRunResult,
-  CartOperation,
 } from "../generated/api";
 
 const NO_CHANGES: CartTransformRunResult = { operations: [] };
@@ -27,27 +26,27 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
       line.merchandise.__typename === "ProductVariant" &&
       (line.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
     ) continue;
-    const lineTotal = parseFloat(line.cost.subtotalAmount.amount as string);
-    if (!isNaN(lineTotal)) cartTotal += lineTotal;
+    const price = parseFloat(line.cost.amountPerQuantity.amount as string);
+    if (!isNaN(price)) cartTotal += price * line.quantity;
   }
 
   const surchargeAmount = parseFloat((cartTotal * DEFAULT_RATE).toFixed(2));
   if (cartTotal <= 0 || surchargeAmount <= 0) return NO_CHANGES;
 
-  const operations: CartOperation[] = [
-    {
-      update: {
-        cartLineId: surchargeLine.id,
-        price: {
-          adjustment: {
-            fixedPricePerUnit: {
-              amount: String(surchargeAmount),
+  return {
+    operations: [
+      {
+        lineUpdate: {
+          cartLineId: surchargeLine.id,
+          price: {
+            adjustment: {
+              fixedPricePerUnit: {
+                amount: String(surchargeAmount),
+              },
             },
           },
         },
       },
-    },
-  ];
-
-  return { operations: operations as unknown as CartTransformRunResult["operations"] };
+    ],
+  };
 }
