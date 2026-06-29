@@ -2,12 +2,13 @@
  * Surcharge Cart Manager
  * - Sepet toplamının %X'i kadar surcharge ürününü yönetir
  * - İndirimli fiyatlar (final_line_price) baz alınır
- * - Checkout öncesi doğrulama döngüsü ile yanlış fiyatla checkout engellenir
+ * - Fiyat görüntüsü Cart Transform Function tarafından yönetilir;
+ *   bu kod sadece doğru tutarı API'ye bildirir ve ürünü sepete ekler
  */
 (function () {
   "use strict";
 
-  var POLL_INTERVAL = 8000; // 8 saniye
+  var POLL_INTERVAL = 8000;
 
   // ============================================================
   // CONFIG
@@ -86,7 +87,7 @@
     });
   }
 
-  // Gerçek ürünlerin indirimli toplamını cent olarak döner
+  // İndirim uygulanmış gerçek ürün toplamı (cent)
   function calcRealTotalCents(lines, variantId) {
     return lines
       .filter(function (l) { return String(l.variant_id) !== variantId; })
@@ -95,6 +96,10 @@
 
   // ============================================================
   // CORE LOGIC
+  // Önemli not: /cart.js'deki `price` Cart Transform'un override
+  // ettiği fiyatı değil, variant'ın kayıtlı fiyatını döndürür.
+  // Bu yüzden fiyat karşılaştırması yapılmaz; sadece sepette
+  // tam olarak 1 adet surcharge olup olmadığı kontrol edilir.
   // ============================================================
   function applySurcharge(cart, config) {
     var lines = cart.items || [];
@@ -113,20 +118,14 @@
       return removeSurchargeLines(surchargeLines);
     }
 
-    var expectedCents = Math.round(totalCents * config.percentage / 100);
-
-    // Tek surcharge, doğru fiyat, miktar 1 → değişiklik yok
-    if (
-      surchargeLines.length === 1 &&
-      surchargeLines[0].quantity === 1 &&
-      surchargeLines[0].price === expectedCents
-    ) {
-      return Promise.resolve();
+    // Zaten tam 1 adet surcharge var ve totalEur değişmemişse dokunma
+    // (fiyat doğruluğu Cart Transform Function'ın sorumluluğu)
+    if (surchargeLines.length === 1 && surchargeLines[0].quantity === 1) {
+      // Sadece API'ye güncel tutarı bildir; sil/ekle döngüsüne girme
+      return updateSurchargePrice(totalEur);
     }
 
-    // 1) Variant fiyatını API'de güncelle
-    // 2) Tüm mevcut surcharge satırlarını sil
-    // 3) Taze 1 adet ekle
+    // Surcharge yok veya birden fazla var: düzelt
     return updateSurchargePrice(totalEur)
       .then(function () {
         return removeSurchargeLines(surchargeLines);
@@ -138,47 +137,39 @@
 
   // ============================================================
   // CHECKOUT INTERCEPT
+  // Checkout öncesi: tutarı API'ye bildir, surcharge sepette var mı
+  // kontrol et. Fiyat karşılaştırması yapma — Cart Transform halleder.
   // ============================================================
-
-  // Sepeti tekrar okuyup surcharge'ın kesinlikle doğru olduğunu doğrula.
-  // Yanlışsa applySurcharge'ı yeniden çağırır; max 6 tur (yaklaşık 4.5 sn).
-  function verifyAndFix(config, attempt) {
-    if (attempt >= 6) {
-      console.warn("[Surcharge] Doğrulama zaman aşımı — checkout'a devam ediliyor.");
-      return Promise.resolve();
-    }
+  function ensureSurchargePresent(config, attempt) {
+    if (attempt >= 4) return Promise.resolve();
 
     return getCart().then(function (cart) {
       var lines = cart.items || [];
       var VARIANT_ID = config.variantId;
       var surcharge = lines.filter(function (l) { return String(l.variant_id) === VARIANT_ID; });
       var totalCents = calcRealTotalCents(lines, VARIANT_ID);
-      var expectedCents = Math.round(totalCents * config.percentage / 100);
+      var totalEur = totalCents / 100;
 
-      // Sepet boşsa surcharge olmamalı
-      if (totalCents === 0) {
+      if (totalEur <= 0) {
+        // Sepet boş, surcharge olmamalı
         if (surcharge.length === 0) return Promise.resolve();
-        return removeSurchargeLines(surcharge).then(function () {
-          return verifyAndFix(config, attempt + 1);
-        });
+        return removeSurchargeLines(surcharge);
       }
 
-      // Tek satır, doğru fiyat, miktar 1 → onaylandı
-      if (
-        surcharge.length === 1 &&
-        surcharge[0].quantity === 1 &&
-        surcharge[0].price === expectedCents
-      ) {
-        return Promise.resolve();
+      // 1 adet surcharge var → API'ye son tutarı bildir, git
+      if (surcharge.length === 1 && surcharge[0].quantity === 1) {
+        return updateSurchargePrice(totalEur);
       }
 
-      // Hâlâ yanlış: düzelt, sonra tekrar kontrol et
-      return applySurcharge(cart, config)
+      // Surcharge eksik veya fazla → düzelt ve bir kez daha kontrol et
+      return updateSurchargePrice(totalEur)
+        .then(function () { return removeSurchargeLines(surcharge); })
+        .then(function () { return addSurcharge(VARIANT_ID); })
         .then(function () {
-          return new Promise(function (resolve) { setTimeout(resolve, 700); });
+          return new Promise(function (resolve) { setTimeout(resolve, 500); });
         })
         .then(function () {
-          return verifyAndFix(config, attempt + 1);
+          return ensureSurchargePresent(config, attempt + 1);
         });
     });
   }
@@ -198,7 +189,7 @@
     var href = anchor ? anchor.href : "/checkout";
 
     enqueue(function () {
-      return verifyAndFix(config, 0)
+      return ensureSurchargePresent(config, 0)
         .then(function () {
           window.location.href = href;
         })
@@ -210,14 +201,13 @@
   }, true);
 
   // ============================================================
-  // POLLING — indirim dahil her değişikliği yakalar
+  // POLLING — sadece gerçek ürün toplamı değişince çalışır
   // ============================================================
   var _lastRealHash = null;
 
   function realHash(lines, variantId) {
     return lines
       .filter(function (l) { return String(l.variant_id) !== variantId; })
-      // final_line_price: indirim uygulanmış fiyat — bu değişince hash değişir
       .map(function (l) { return l.variant_id + ":" + l.quantity + ":" + l.final_line_price; })
       .sort()
       .join("|");
