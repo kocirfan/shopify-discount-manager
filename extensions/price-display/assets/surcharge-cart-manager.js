@@ -183,6 +183,61 @@
     });
   }
 
+  function showCheckoutSpinner(target) {
+    if (target.tagName === "INPUT") {
+      target.disabled = true;
+      target.dataset._origValue = target.value;
+      target.value = "...";
+      return;
+    }
+    target.disabled = true;
+    target.dataset._origHtml = target.innerHTML;
+    target.style.position = "relative";
+    target.style.pointerEvents = "none";
+    target.style.opacity = "0.8";
+
+    var spinner = document.createElement("span");
+    spinner.className = "_surcharge-spinner";
+    spinner.style.cssText = [
+      "display:inline-block",
+      "width:1em",
+      "height:1em",
+      "border:2px solid currentColor",
+      "border-top-color:transparent",
+      "border-radius:50%",
+      "animation:_surcharge-spin 0.7s linear infinite",
+      "vertical-align:middle",
+      "margin-left:0.5em",
+    ].join(";");
+
+    if (!document.getElementById("_surcharge-spin-style")) {
+      var style = document.createElement("style");
+      style.id = "_surcharge-spin-style";
+      style.textContent = "@keyframes _surcharge-spin{to{transform:rotate(360deg)}}";
+      document.head.appendChild(style);
+    }
+
+    target.appendChild(spinner);
+  }
+
+  function hideCheckoutSpinner(target) {
+    if (target.tagName === "INPUT") {
+      target.disabled = false;
+      if (target.dataset._origValue !== undefined) {
+        target.value = target.dataset._origValue;
+        delete target.dataset._origValue;
+      }
+      return;
+    }
+    target.disabled = false;
+    target.style.pointerEvents = "";
+    target.style.opacity = "";
+    if (target.dataset._origHtml !== undefined) {
+      target.innerHTML = target.dataset._origHtml;
+      delete target.dataset._origHtml;
+    }
+  }
+
   document.addEventListener("click", function (e) {
     var anchor = e.target.closest('a[href*="/checkout"]');
     var btn = !anchor && e.target.closest('button[name="checkout"], input[name="checkout"]');
@@ -197,6 +252,8 @@
 
     var href = anchor ? anchor.href : "/checkout";
 
+    showCheckoutSpinner(target);
+
     enqueue(function () {
       return verifyAndFix(config, 0)
         .then(function () {
@@ -204,6 +261,7 @@
         })
         .catch(function (err) {
           console.error("[Surcharge] checkout hata:", err);
+          hideCheckoutSpinner(target);
           window.location.href = href;
         });
     });
