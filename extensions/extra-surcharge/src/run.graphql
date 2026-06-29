@@ -4,7 +4,7 @@ query CartTransformRunInput {
       id
       quantity
       cost {
-        amountPerQuantity {
+        subtotalAmount {
           amount
         }
       }

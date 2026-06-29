@@ -26,8 +26,9 @@ export function run(input: CartTransformRunInput): CartTransformRunResult {
       line.merchandise.__typename === "ProductVariant" &&
       (line.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
     ) continue;
-    const price = parseFloat(line.cost.amountPerQuantity.amount as string);
-    if (!isNaN(price)) cartTotal += price * line.quantity;
+    // subtotalAmount = indirim uygulanmış satır toplamı (quantity dahil)
+    const lineTotal = parseFloat(line.cost.subtotalAmount.amount as string);
+    if (!isNaN(lineTotal)) cartTotal += lineTotal;
   }
 
   const surchargeAmount = parseFloat((cartTotal * DEFAULT_RATE).toFixed(2));

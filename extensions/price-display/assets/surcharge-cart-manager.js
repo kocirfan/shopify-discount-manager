@@ -1,13 +1,13 @@
 /**
  * Surcharge Cart Manager
  * - Sepet toplamının %X'i kadar surcharge ürününü yönetir
- * - Checkout anında fiyat günceller ve sepete ekler
- * - Polling: sadece sepet değişince çalışır, rate limit korumalı
+ * - İndirimli fiyatlar (final_line_price) baz alınır
+ * - Checkout öncesi doğrulama döngüsü ile yanlış fiyatla checkout engellenir
  */
 (function () {
   "use strict";
 
-  var POLL_INTERVAL = 10000; // 10 saniye
+  var POLL_INTERVAL = 8000; // 8 saniye
 
   // ============================================================
   // CONFIG
@@ -49,7 +49,6 @@
     return fetchJSON("/cart.js");
   }
 
-  // Mevcut surcharge satırlarını sil, bitince sepeti doğrula
   function removeSurchargeLines(surchargeLines) {
     if (surchargeLines.length === 0) return Promise.resolve();
     return surchargeLines.reduce(function (p, line) {
@@ -63,18 +62,11 @@
     }, Promise.resolve());
   }
 
-  // Silme sonrası sepeti doğrular, surcharge yoksa 1 adet ekler
-  function addSurchargeIfAbsent(variantId) {
-    return getCart().then(function (freshCart) {
-      var stillExists = (freshCart.items || []).some(function (l) {
-        return String(l.variant_id) === String(variantId);
-      });
-      if (stillExists) return Promise.resolve(); // silme henüz yansımadı, eklemiyoruz
-      return fetchJSON("/cart/add.js", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
-      });
+  function addSurcharge(variantId) {
+    return fetchJSON("/cart/add.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
     });
   }
 
@@ -94,8 +86,15 @@
     });
   }
 
+  // Gerçek ürünlerin indirimli toplamını cent olarak döner
+  function calcRealTotalCents(lines, variantId) {
+    return lines
+      .filter(function (l) { return String(l.variant_id) !== variantId; })
+      .reduce(function (sum, l) { return sum + l.final_line_price; }, 0);
+  }
+
   // ============================================================
-  // CORE LOGIC — her zaman bu fonksiyon üzerinden geçilir
+  // CORE LOGIC
   // ============================================================
   function applySurcharge(cart, config) {
     var lines = cart.items || [];
@@ -104,11 +103,8 @@
     var surchargeLines = lines.filter(function (l) {
       return String(l.variant_id) === VARIANT_ID;
     });
-    var realLines = lines.filter(function (l) {
-      return String(l.variant_id) !== VARIANT_ID;
-    });
 
-    var totalCents = realLines.reduce(function (sum, l) { return sum + l.final_line_price; }, 0);
+    var totalCents = calcRealTotalCents(lines, VARIANT_ID);
     var totalEur = totalCents / 100;
 
     // Sepet boşsa surcharge'ı kaldır
@@ -117,32 +113,76 @@
       return removeSurchargeLines(surchargeLines);
     }
 
-    var expectedCents = Math.round(totalEur * config.percentage / 100 * 100);
+    var expectedCents = Math.round(totalCents * config.percentage / 100);
 
-    // Tek surcharge var, fiyatı doğruysa hiçbir şey yapma
+    // Tek surcharge, doğru fiyat, miktar 1 → değişiklik yok
     if (
       surchargeLines.length === 1 &&
-      surchargeLines[0].price === expectedCents &&
-      surchargeLines[0].quantity === 1
+      surchargeLines[0].quantity === 1 &&
+      surchargeLines[0].price === expectedCents
     ) {
       return Promise.resolve();
     }
 
-    // 1) Fiyatı güncelle (app API)
-    // 2) Mevcut tüm surcharge satırlarını sil
-    // 3) Temiz sepete 1 adet ekle
+    // 1) Variant fiyatını API'de güncelle
+    // 2) Tüm mevcut surcharge satırlarını sil
+    // 3) Taze 1 adet ekle
     return updateSurchargePrice(totalEur)
       .then(function () {
         return removeSurchargeLines(surchargeLines);
       })
       .then(function () {
-        return addSurchargeIfAbsent(VARIANT_ID);
+        return addSurcharge(VARIANT_ID);
       });
   }
 
   // ============================================================
   // CHECKOUT INTERCEPT
   // ============================================================
+
+  // Sepeti tekrar okuyup surcharge'ın kesinlikle doğru olduğunu doğrula.
+  // Yanlışsa applySurcharge'ı yeniden çağırır; max 6 tur (yaklaşık 4.5 sn).
+  function verifyAndFix(config, attempt) {
+    if (attempt >= 6) {
+      console.warn("[Surcharge] Doğrulama zaman aşımı — checkout'a devam ediliyor.");
+      return Promise.resolve();
+    }
+
+    return getCart().then(function (cart) {
+      var lines = cart.items || [];
+      var VARIANT_ID = config.variantId;
+      var surcharge = lines.filter(function (l) { return String(l.variant_id) === VARIANT_ID; });
+      var totalCents = calcRealTotalCents(lines, VARIANT_ID);
+      var expectedCents = Math.round(totalCents * config.percentage / 100);
+
+      // Sepet boşsa surcharge olmamalı
+      if (totalCents === 0) {
+        if (surcharge.length === 0) return Promise.resolve();
+        return removeSurchargeLines(surcharge).then(function () {
+          return verifyAndFix(config, attempt + 1);
+        });
+      }
+
+      // Tek satır, doğru fiyat, miktar 1 → onaylandı
+      if (
+        surcharge.length === 1 &&
+        surcharge[0].quantity === 1 &&
+        surcharge[0].price === expectedCents
+      ) {
+        return Promise.resolve();
+      }
+
+      // Hâlâ yanlış: düzelt, sonra tekrar kontrol et
+      return applySurcharge(cart, config)
+        .then(function () {
+          return new Promise(function (resolve) { setTimeout(resolve, 700); });
+        })
+        .then(function () {
+          return verifyAndFix(config, attempt + 1);
+        });
+    });
+  }
+
   document.addEventListener("click", function (e) {
     var anchor = e.target.closest('a[href*="/checkout"]');
     var btn = !anchor && e.target.closest('button[name="checkout"], input[name="checkout"]');
@@ -158,26 +198,27 @@
     var href = anchor ? anchor.href : "/checkout";
 
     enqueue(function () {
-      return getCart().then(function (cart) {
-        return applySurcharge(cart, config);
-      }).then(function () {
-        window.location.href = href;
-      }).catch(function (e) {
-        console.error("[Surcharge] checkout hata:", e);
-        window.location.href = href; // hata olsa da checkout'a git
-      });
+      return verifyAndFix(config, 0)
+        .then(function () {
+          window.location.href = href;
+        })
+        .catch(function (err) {
+          console.error("[Surcharge] checkout hata:", err);
+          window.location.href = href;
+        });
     });
   }, true);
 
   // ============================================================
-  // POLLING — sadece gerçek ürün değişince çalışır
+  // POLLING — indirim dahil her değişikliği yakalar
   // ============================================================
   var _lastRealHash = null;
 
   function realHash(lines, variantId) {
     return lines
       .filter(function (l) { return String(l.variant_id) !== variantId; })
-      .map(function (l) { return l.variant_id + ":" + l.quantity + ":" + l.line_price; })
+      // final_line_price: indirim uygulanmış fiyat — bu değişince hash değişir
+      .map(function (l) { return l.variant_id + ":" + l.quantity + ":" + l.final_line_price; })
       .sort()
       .join("|");
   }
@@ -189,20 +230,20 @@
     enqueue(function () {
       return getCart().then(function (cart) {
         var hash = realHash(cart.items || [], config.variantId);
-        if (hash === _lastRealHash) return; // değişmedi, çık
+        if (hash === _lastRealHash) return;
         _lastRealHash = hash;
         return applySurcharge(cart, config);
       }).catch(function (e) {
-        if (e && e.message && e.message.indexOf("429") !== -1) return; // sessiz
+        if (e && e.message && e.message.indexOf("429") !== -1) return;
         console.error("[Surcharge] sync hata:", e);
       });
     });
   }
 
   // ============================================================
-  // SURCHARGE SİL BUTONU ENGELLE
+  // SURCHARGE SİL / ADET BUTONLARINI ENGELLE
   // ============================================================
-  function hideSurchargeRemoveButton() {
+  function hideSurchargeControls() {
     var config = getConfig();
     if (!config) return;
 
@@ -216,8 +257,9 @@
     });
 
     document.querySelectorAll("tr, li, [data-cart-item], .cart-item, .cart__item").forEach(function (el) {
+      var t = el.textContent.toUpperCase();
       if (
-        (el.textContent.includes("ORDERTOESLAG") || el.textContent.includes("Service Toeslag")) &&
+        (t.includes("ORDERTOESLAG") || t.includes("SERVICE TOESLAG")) &&
         containers.indexOf(el) === -1
       ) {
         containers.push(el);
@@ -242,7 +284,7 @@
   }
 
   var _observer = new MutationObserver(function () {
-    hideSurchargeRemoveButton();
+    hideSurchargeControls();
   });
   _observer.observe(document.body, { childList: true, subtree: true });
 
