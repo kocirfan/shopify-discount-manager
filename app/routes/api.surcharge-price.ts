@@ -120,8 +120,13 @@ export async function action({ request }: ActionFunctionArgs) {
     return new Response(JSON.stringify({ price: surchargePrice }), { status: 200, headers: CORS });
 
   } catch (err: any) {
-    console.error("[surcharge-price] hata:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: CORS });
+    console.error("[surcharge-price] hata:", {
+      message: err?.message,
+      stack: err?.stack,
+      shop,
+      cartTotal,
+    });
+    return new Response(JSON.stringify({ error: err?.message ?? "unknown" }), { status: 500, headers: CORS });
   }
 }
 
