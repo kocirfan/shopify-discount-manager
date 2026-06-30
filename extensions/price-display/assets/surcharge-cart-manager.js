@@ -70,6 +70,22 @@
     });
   }
 
+  function updateSurchargePrice(cartTotalEur) {
+    var shop = window.Shopify && window.Shopify.shop;
+    return fetch(
+      "/apps/discount-manager/api/surcharge-price?shop=" + encodeURIComponent(shop || ""),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartTotal: cartTotalEur }),
+      }
+    ).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).catch(function () {
+      return null;
+    });
+  }
+
   // Gerçek ürünlerin indirimli toplamını cent olarak döner
   function calcRealTotalCents(lines, variantId) {
     return lines
@@ -97,15 +113,25 @@
       return removeSurchargeLines(surchargeLines);
     }
 
-    // Tek surcharge, miktar 1 → Cart Transform zaten doğru fiyatı uygular
-    if (surchargeLines.length === 1 && surchargeLines[0].quantity === 1) {
+    var expectedCents = Math.round(totalCents * config.percentage / 100);
+
+    // Tek surcharge, doğru fiyat, miktar 1 → değişiklik yok
+    if (
+      surchargeLines.length === 1 &&
+      surchargeLines[0].quantity === 1 &&
+      surchargeLines[0].price === expectedCents
+    ) {
       return Promise.resolve();
     }
 
-    // Fazla satır varsa temizle, yoksa ekle
-    return removeSurchargeLines(surchargeLines).then(function () {
-      return addSurcharge(VARIANT_ID);
-    });
+    // Variant fiyatını güncelle, sil, yeniden ekle
+    return updateSurchargePrice(totalEur)
+      .then(function () {
+        return removeSurchargeLines(surchargeLines);
+      })
+      .then(function () {
+        return addSurcharge(VARIANT_ID);
+      });
   }
 
   // ============================================================
