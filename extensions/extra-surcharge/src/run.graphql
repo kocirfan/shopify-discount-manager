@@ -4,7 +4,10 @@ query CartTransformRunInput {
       id
       quantity
       cost {
-        subtotalAmount {
+        totalAmount {
+          amount
+        }
+        amountPerQuantity {
           amount
         }
       }
@@ -14,6 +17,25 @@ query CartTransformRunInput {
           id
         }
       }
+    }
+    buyerIdentity {
+      customer {
+        exactDiscountCode: metafield(namespace: "custom", key: "exact_discount_code") {
+          value
+        }
+        discountPercentage: metafield(namespace: "custom", key: "customer_discount_percentage") {
+          value
+        }
+        hasTags(tags: ["korting-5", "korting-10", "korting-15", "korting-20", "korting-25", "korting-30", "korting-35", "korting-40", "korting-45", "korting-50"]) {
+          hasTag
+          tag
+        }
+      }
+    }
+  }
+  shop {
+    customerTagDiscountRules: metafield(namespace: "customer_tag_discount", key: "rules") {
+      value
     }
   }
 }

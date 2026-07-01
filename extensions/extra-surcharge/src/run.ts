@@ -1,43 +1,91 @@
-import type {
-  CartTransformRunInput,
-  CartTransformRunResult,
-} from "../generated/api";
+import type { CartTransformRunInput } from "../generated/api";
 
-const NO_CHANGES: CartTransformRunResult = { operations: [] };
 const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
-const DEFAULT_RATE = 0.05;
+const SURCHARGE_RATE = 0.05;
 
-export function run(input: CartTransformRunInput): CartTransformRunResult {
+function getCustomerDiscountRate(input: CartTransformRunInput): number {
+  const customer = input.cart.buyerIdentity?.customer;
+  if (!customer) return 0;
+
+  // Öncelik 1: exactDiscountCode metafield (korting-25.1 formatı)
+  const exactCode = customer.exactDiscountCode?.value;
+  if (exactCode) {
+    const match = exactCode.match(/^korting-(.+)$/i);
+    if (match) {
+      const parsed = parseFloat(match[1]);
+      if (!isNaN(parsed) && parsed > 0) return parsed / 100;
+    }
+  }
+
+  // Öncelik 2: discountPercentage metafield
+  const metafieldVal = customer.discountPercentage?.value;
+  if (metafieldVal) {
+    const parsed = parseFloat(metafieldVal);
+    if (!isNaN(parsed) && parsed > 0) return parsed / 100;
+  }
+
+  // Öncelik 3: tag sistemi
+  const activeTags = (customer.hasTags || [])
+    .filter((t) => t.hasTag)
+    .map((t) => t.tag.toLowerCase());
+
+  if (activeTags.length === 0) return 0;
+
+  const rulesJson = input.shop?.customerTagDiscountRules?.value;
+  if (!rulesJson) return 0;
+
+  try {
+    const rules: { customerTag: string; discountPercentage: number; enabled: boolean }[] = JSON.parse(rulesJson);
+    let highest = 0;
+    for (const rule of rules) {
+      if (!rule.enabled) continue;
+      if (activeTags.includes(rule.customerTag.toLowerCase())) {
+        if (rule.discountPercentage > highest) highest = rule.discountPercentage;
+      }
+    }
+    return highest > 0 ? highest / 100 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function run(input: CartTransformRunInput): unknown {
   const lines = input.cart.lines;
 
-  // Surcharge line'ı bul
   const surchargeLine = lines.find(
     (l) =>
       l.merchandise.__typename === "ProductVariant" &&
       (l.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
   );
 
-  if (!surchargeLine) return NO_CHANGES;
+  if (!surchargeLine) return { operations: [] };
 
-  // Surcharge hariç toplam
+  const discountRate = getCustomerDiscountRate(input);
+
+  // Her line için indirim sonrası tutarı hesapla
   let cartTotal = 0;
   for (const line of lines) {
     if (
       line.merchandise.__typename === "ProductVariant" &&
       (line.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
     ) continue;
-    // subtotalAmount = indirim uygulanmış satır toplamı (quantity dahil)
-    const lineTotal = parseFloat(line.cost.subtotalAmount.amount as string);
-    if (!isNaN(lineTotal)) cartTotal += lineTotal;
+
+    const linePrice = parseFloat(line.cost.amountPerQuantity.amount as string);
+    if (isNaN(linePrice)) continue;
+
+    const discountedPrice = linePrice * (1 - discountRate);
+    cartTotal += discountedPrice * line.quantity;
   }
 
-  const surchargeAmount = parseFloat((cartTotal * DEFAULT_RATE).toFixed(2));
-  if (cartTotal <= 0 || surchargeAmount <= 0) return NO_CHANGES;
+  cartTotal = parseFloat(cartTotal.toFixed(2));
+  const surchargeAmount = parseFloat((cartTotal * SURCHARGE_RATE).toFixed(2));
+
+  if (cartTotal <= 0 || surchargeAmount <= 0) return { operations: [] };
 
   return {
     operations: [
       {
-        lineUpdate: {
+        update: {
           cartLineId: surchargeLine.id,
           price: {
             adjustment: {

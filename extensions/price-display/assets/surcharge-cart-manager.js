@@ -70,31 +70,14 @@
     });
   }
 
-  function updateSurchargePrice(cartTotalEur) {
-    var shop = window.Shopify && window.Shopify.shop;
-    return fetch(
-      "/apps/discount-manager/api/surcharge-price?shop=" + encodeURIComponent(shop || ""),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cartTotal: cartTotalEur }),
-      }
-    ).then(function (r) {
-      return r.ok ? r.json() : null;
-    }).catch(function () {
-      return null;
-    });
-  }
-
-  // Gerçek ürünlerin indirimli toplamını cent olarak döner
-  function calcRealTotalCents(lines, variantId) {
-    return lines
-      .filter(function (l) { return String(l.variant_id) !== variantId; })
-      .reduce(function (sum, l) { return sum + l.final_line_price; }, 0);
+  function hasRealItems(lines, variantId) {
+    return lines.some(function (l) { return String(l.variant_id) !== variantId; });
   }
 
   // ============================================================
   // CORE LOGIC
+  // Cart Transform fiyatı hallediyor — JS sadece variant'ın
+  // sepette olup olmadığını yönetir.
   // ============================================================
   function applySurcharge(cart, config) {
     var lines = cart.items || [];
@@ -104,34 +87,23 @@
       return String(l.variant_id) === VARIANT_ID;
     });
 
-    var totalCents = calcRealTotalCents(lines, VARIANT_ID);
-    var totalEur = totalCents / 100;
+    var hasItems = hasRealItems(lines, VARIANT_ID);
 
-    // Sepet boşsa surcharge'ı kaldır
-    if (totalEur <= 0) {
+    // Gerçek ürün yoksa surcharge'ı kaldır
+    if (!hasItems) {
       if (surchargeLines.length === 0) return Promise.resolve();
       return removeSurchargeLines(surchargeLines);
     }
 
-    var expectedCents = Math.round(totalCents * config.percentage / 100);
-
-    // Tek surcharge, doğru fiyat, miktar 1 → değişiklik yok
-    if (
-      surchargeLines.length === 1 &&
-      surchargeLines[0].quantity === 1 &&
-      surchargeLines[0].price === expectedCents
-    ) {
+    // Tek surcharge, miktar 1 → değişiklik yok
+    if (surchargeLines.length === 1 && surchargeLines[0].quantity === 1) {
       return Promise.resolve();
     }
 
-    // Variant fiyatını güncelle, sil, yeniden ekle
-    return updateSurchargePrice(totalEur)
-      .then(function () {
-        return removeSurchargeLines(surchargeLines);
-      })
-      .then(function () {
-        return addSurcharge(VARIANT_ID);
-      });
+    // Fazla/eksik satır varsa düzelt
+    return removeSurchargeLines(surchargeLines).then(function () {
+      return addSurcharge(VARIANT_ID);
+    });
   }
 
   // ============================================================
@@ -150,27 +122,22 @@
       var lines = cart.items || [];
       var VARIANT_ID = config.variantId;
       var surcharge = lines.filter(function (l) { return String(l.variant_id) === VARIANT_ID; });
-      var totalCents = calcRealTotalCents(lines, VARIANT_ID);
-      var expectedCents = Math.round(totalCents * config.percentage / 100);
+      var hasItems = hasRealItems(lines, VARIANT_ID);
 
-      // Sepet boşsa surcharge olmamalı
-      if (totalCents === 0) {
+      // Gerçek ürün yoksa surcharge olmamalı
+      if (!hasItems) {
         if (surcharge.length === 0) return Promise.resolve();
         return removeSurchargeLines(surcharge).then(function () {
           return verifyAndFix(config, attempt + 1);
         });
       }
 
-      // Tek satır, doğru fiyat, miktar 1 → onaylandı
-      if (
-        surcharge.length === 1 &&
-        surcharge[0].quantity === 1 &&
-        surcharge[0].price === expectedCents
-      ) {
+      // Tek satır, miktar 1 → onaylandı (fiyatı Cart Transform halleder)
+      if (surcharge.length === 1 && surcharge[0].quantity === 1) {
         return Promise.resolve();
       }
 
-      // Hâlâ yanlış: düzelt, sonra tekrar kontrol et
+      // Eksik/fazla: düzelt
       return applySurcharge(cart, config)
         .then(function () {
           return new Promise(function (resolve) { setTimeout(resolve, 700); });
