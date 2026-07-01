@@ -62,19 +62,31 @@ export function run(input: CartTransformRunInput): unknown {
 
   const discountRate = getCustomerDiscountRate(input);
 
+  // Muaf ürün ID listesi
+  let excludedProductIds: string[] = [];
+  try {
+    const raw = input.shop?.excludedProducts?.value;
+    if (raw) excludedProductIds = JSON.parse(raw);
+  } catch { /* boş liste */ }
+
   // Her line için indirim sonrası tutarı hesapla
   let cartTotal = 0;
   for (const line of lines) {
-    if (
-      line.merchandise.__typename === "ProductVariant" &&
-      (line.merchandise as { __typename: "ProductVariant"; id: string }).id === SURCHARGE_VARIANT_ID
-    ) continue;
+    const merch = line.merchandise;
+    if (merch.__typename !== "ProductVariant") continue;
+    const variant = merch as { __typename: "ProductVariant"; id: string; product?: { id: string; hasAnyTag?: boolean } };
+    if (variant.id === SURCHARGE_VARIANT_ID) continue;
 
     const linePrice = parseFloat(line.cost.amountPerQuantity.amount as string);
     if (isNaN(linePrice)) continue;
 
-    const discountedPrice = linePrice * (1 - discountRate);
-    cartTotal += discountedPrice * line.quantity;
+    // Ürün muaf mı? (nodiscount tag veya excluded list)
+    const isExcluded =
+      (variant.product?.hasAnyTag === true) ||
+      (variant.product?.id != null && excludedProductIds.includes(variant.product.id));
+
+    const effectivePrice = isExcluded ? linePrice : linePrice * (1 - discountRate);
+    cartTotal += effectivePrice * line.quantity;
   }
 
   cartTotal = parseFloat(cartTotal.toFixed(2));

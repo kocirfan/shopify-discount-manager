@@ -15,6 +15,10 @@ query CartTransformRunInput {
         __typename
         ... on ProductVariant {
           id
+          product {
+            id
+            hasAnyTag(tags: ["nodiscount"])
+          }
         }
       }
     }
@@ -35,6 +39,9 @@ query CartTransformRunInput {
   }
   shop {
     customerTagDiscountRules: metafield(namespace: "customer_tag_discount", key: "rules") {
+      value
+    }
+    excludedProducts: metafield(namespace: "customer_tag_discount", key: "excluded_products") {
       value
     }
   }
