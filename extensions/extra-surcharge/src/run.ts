@@ -2,6 +2,11 @@ import type { CartTransformRunInput } from "../generated/api";
 
 const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
 const SURCHARGE_RATE = 0.05;
+// Bu ürünler Ordertoeslag (surcharge) hesaplamasına dahil edilmez
+const SURCHARGE_EXEMPT_PRODUCT_IDS = [
+  "gid://shopify/Product/15252021281098",
+  "gid://shopify/Product/15564785058122",
+];
 
 function getCustomerDiscountRate(input: CartTransformRunInput): number {
   const customer = input.cart.buyerIdentity?.customer;
@@ -76,6 +81,7 @@ export function run(input: CartTransformRunInput): unknown {
     if (merch.__typename !== "ProductVariant") continue;
     const variant = merch as { __typename: "ProductVariant"; id: string; product?: { id: string; hasAnyTag?: boolean } };
     if (variant.id === SURCHARGE_VARIANT_ID) continue;
+    if (variant.product?.id != null && SURCHARGE_EXEMPT_PRODUCT_IDS.includes(variant.product.id)) continue;
 
     const linePrice = parseFloat(line.cost.amountPerQuantity.amount as string);
     if (isNaN(linePrice)) continue;

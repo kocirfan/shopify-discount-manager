@@ -7,14 +7,29 @@
 
   const CONFIG = {
     apiUrl: '/apps/discount-manager/api/customer-discount',
-    priceSelectors: [
-      '.money',
-      '[data-product-price]',
-      '.price-item--regular .money',
-      '.price-item--sale .money',
-    ],
     cacheDuration: 5 * 60 * 1000,
-    processedAttr: 'data-cdp-processed'
+    processedAttr: 'data-cdp-processed',
+    // İşlenen elementin bizim yazdığımız çıktısı burada saklanır.
+    // Tema (örn. varyant değişiminde) içeriği yeniden yazarsa eşleşme bozulur
+    // ve elementi tekrar işleriz.
+    outputAttr: 'data-cdp-output'
+  };
+
+  // Fiyat elementlerinin tek kaynağı - hem ilk yükleme hem observer bunu kullanır
+  const PRICE_SELECTORS = [
+    '.price-item--regular',
+    '.price-item--sale',
+    '.big-price',
+    '.price-wrapper',
+    '.money'
+  ];
+
+  // characterData da izleniyor: bazı temalar varyant değişiminde elementi
+  // değiştirmeden sadece içindeki text node'u günceller.
+  const OBSERVER_OPTIONS = {
+    childList: true,
+    subtree: true,
+    characterData: true
   };
 
   let customerDiscount = null;
@@ -62,7 +77,11 @@
 
   function extractPrice(text) {
     if (!text) return null;
-    const cleaned = text.replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.');
+    // Metinde birden fazla fiyat olabilir (örn. "€190,00 (€229,90 incl. btw)" veya
+    // bizim yazdığımız "yeni fiyat + üstü çizili eski fiyat"). İlkini alıyoruz.
+    const match = text.replace(/\s/g, '').match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d+)?/);
+    if (!match) return null;
+    const cleaned = match[0].replace(/\./g, '').replace(',', '.');
     const value = parseFloat(cleaned);
     return (!isNaN(value) && value > 0) ? value : null;
   }
@@ -90,8 +109,21 @@
 
   function updatePriceElement(element, discountPercent) {
     if (element.hasAttribute(CONFIG.processedAttr)) {
-      log('Element zaten işlenmiş, atlanıyor:', element);
-      return;
+      // Tema içeriği yeniden yazdıysa (varyant değişimi vb.) damgayı temizleyip
+      // yeni fiyatı işleyelim; aksi halde eski indirimli fiyat ekranda kalır.
+      if (element.innerHTML === element.getAttribute(CONFIG.outputAttr)) {
+        log('Element zaten işlenmiş, atlanıyor:', element);
+        return;
+      }
+      log('İçerik tema tarafından değiştirilmiş, yeniden işleniyor:', element);
+      // Kalıntımız (üstü çizili orijinal fiyat) duruyorsa onu kaynak alırız;
+      // aksi halde zaten indirimli fiyattan tekrar indirim yapardık.
+      const leftover = element.querySelector('s');
+      if (leftover) {
+        element.textContent = leftover.textContent;
+      }
+      element.removeAttribute(CONFIG.processedAttr);
+      element.removeAttribute(CONFIG.outputAttr);
     }
 
     // Ürün kartında data-product handle'ı varsa ve nodiscount listesindeyse atla
@@ -126,6 +158,9 @@
     } else {
       element.innerHTML = `<span style="color:#02437d;font-weight:bold">${newPrice}</span> <s style="opacity:0.6;color:#000!important;padding-left:10px">${oldPrice}</s>`;
     }
+
+    // Yazdığımız çıktıyı sakla - tema bunu değiştirirse yeniden işleyeceğiz
+    element.setAttribute(CONFIG.outputAttr, element.innerHTML);
   }
 
   async function updateAllPrices() {
@@ -152,15 +187,9 @@
 
     log('İndirim uygulanıyor:', discount.discountPercentage + '%');
 
-    const selectors = [
-      '.price-item--regular',
-      '.price-item--sale',
-      '.big-price',
-      '.price-wrapper',
-      '.money',
-    ].map(s => `${s}:not([data-cdp-processed])`).join(', ');
-
-    const priceElements = document.querySelectorAll(selectors);
+    // :not([data-cdp-processed]) filtresi kullanmıyoruz - updatePriceElement zaten
+    // işlenmiş elementleri eleyip, tema tarafından değiştirilenleri yeniden işliyor.
+    const priceElements = document.querySelectorAll(PRICE_SELECTORS.join(', '));
     log('Bulunan fiyat elementleri:', priceElements.length, 'adet');
 
     priceElements.forEach(el => updatePriceElement(el, discount.discountPercentage));
@@ -179,16 +208,29 @@
   }
 
   function observeDOMChanges() {
+    let scheduled = false;
+
     const observer = new MutationObserver(() => {
+      if (scheduled) return;
       if (isPageProductNoDiscount()) return;
-      const unprocessed = document.querySelectorAll('.money:not([data-cdp-processed])');
-      if (unprocessed.length > 0 && customerDiscount?.discountPercentage > 0) {
-        log('MutationObserver: yeni', unprocessed.length, 'element bulundu, güncelleniyor...');
-        unprocessed.forEach(el => updatePriceElement(el, customerDiscount.discountPercentage));
-      }
+      if (!(customerDiscount?.discountPercentage > 0)) return;
+
+      // Kendi DOM yazımlarımız observer'ı yeniden tetikler. Bir microtask'a
+      // toplayıp, yazarken observer'ı durdurarak döngüyü kırıyoruz.
+      scheduled = true;
+      Promise.resolve().then(() => {
+        scheduled = false;
+        observer.disconnect();
+        try {
+          const elements = document.querySelectorAll(PRICE_SELECTORS.join(', '));
+          elements.forEach(el => updatePriceElement(el, customerDiscount.discountPercentage));
+        } finally {
+          observer.observe(document.body, OBSERVER_OPTIONS);
+        }
+      });
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, OBSERVER_OPTIONS);
     log('MutationObserver başlatıldı');
   }
 
