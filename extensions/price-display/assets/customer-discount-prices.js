@@ -35,12 +35,17 @@
   let customerDiscount = null;
   let lastFetch = 0;
 
+  // Hata ayıklama: konsolda `window.CDP_DEBUG = false` ile kapatılabilir,
+  // ?cdp_debug=0 query parametresi ile de bastırılır.
+  const DEBUG = new URLSearchParams(location.search).get('cdp_debug') !== '0';
+  window.CDP_DEBUG = DEBUG;
+
   function log(...args) {
-    //console.log('[CDP]', ...args);
+    if (window.CDP_DEBUG) console.log('[CDP]', ...args);
   }
 
   function logError(...args) {
-   // console.error('[CDP]', ...args);
+    if (window.CDP_DEBUG) console.error('[CDP]', ...args);
   }
 
   async function fetchCustomerDiscount() {
@@ -248,11 +253,25 @@
 
   function init() {
     log('Customer Discount Price Display başlatılıyor... readyState:', document.readyState);
+
+    // Teşhis: block render edilmediyse müşteri verisi hiç basılmaz ve
+    // API "müşteri giriş yapmamış" döner. En sık karşılaşılan kurulum hatası bu.
+    const dataEl = document.getElementById('customer-discount-data');
+    if (!dataEl) {
+      log('UYARI: #customer-discount-data bulunamadı. Theme Editor\'da "Customer Discount Prices" bloğu eklenmemiş olabilir, ya da müşteri giriş yapmamış.');
+    } else {
+      log('Müşteri verisi bulundu:', dataEl.textContent.trim());
+    }
+    log('Sayfadaki fiyat elementleri:',
+      document.querySelectorAll(PRICE_SELECTORS.join(', ')).length, 'adet');
+
     _nodiscountHandles = null; // sayfa yüklendiğinde cache'i sıfırla
     addStyles();
     updateAllPrices();
     observeDOMChanges();
   }
+
+  log('script yüklendi');
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

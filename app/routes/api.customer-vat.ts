@@ -63,6 +63,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             email
             firstName
             lastName
+            tags
           }
         }
       `,
@@ -95,6 +96,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         vat: vat,
         code: code,
         exactOnlineId: exactOnlineId,
+        tags: customer.tags || [],
         customerName: `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
         customerEmail: customer.email,
       }),
