@@ -236,6 +236,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 id
                 title
                 apiType
+                handle
               }
             }
           }
@@ -247,11 +248,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       // Customer tag PRODUCT discount function'ını bul
       // ÖNEMLİ: "customer-tag-product-discount" bir PRODUCT discount'tur, order discount değil!
-      let discountFunction = functionsData.data?.shopifyFunctions?.nodes?.find(
-        (fn: any) => fn.apiType === "product_discounts" &&
-          (fn.title?.toLowerCase().includes("customer tag product") ||
-           fn.title?.toLowerCase().includes("customer-tag-product"))
-      );
+      // Discount Function API (2026-07) ile apiType "discount" oldu; önce handle ile,
+      // bulunamazsa eski title/apiType eşleşmesiyle ara.
+      const functionNodes = functionsData.data?.shopifyFunctions?.nodes || [];
+      let discountFunction =
+        functionNodes.find((fn: any) => fn.handle === "customer-tag-product-discount") ||
+        functionNodes.find(
+          (fn: any) => (fn.apiType === "product_discounts" || fn.apiType === "discount") &&
+            (fn.title?.toLowerCase().includes("customer tag product") ||
+             fn.title?.toLowerCase().includes("customer-tag-product"))
+        );
 
       if (!discountFunction) {
         // Eğer product discount bulunamazsa, order discount'u da dene (eski versiyon için)
@@ -341,6 +347,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             automaticAppDiscount: {
               title: discountTitle,
               functionId: discountFunction.id,
+              // Discount Function API: sınıf belirtilmezse function çıktısı uygulanmaz
+              discountClasses: ["PRODUCT"],
               startsAt: "2024-01-01T00:00:00Z",
               combinesWith: {
                 orderDiscounts: true,

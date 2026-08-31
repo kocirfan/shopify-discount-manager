@@ -1,4 +1,4 @@
-api_version = "2025-07"
+api_version = "2026-07"
 
 [[extensions]]
 name = "Pickup Order Discount"
@@ -8,7 +8,7 @@ type = "function"
 description = "Apply 2% order-level discount on cart subtotal when pickup delivery method is selected"
 
   [[extensions.targeting]]
-  target = "purchase.order-discount.run"
+  target = "cart.lines.discounts.generate.run"
   input_query = "src/order_discount_run.graphql"
   export = "run"
 

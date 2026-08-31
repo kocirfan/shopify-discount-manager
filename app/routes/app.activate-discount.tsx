@@ -14,6 +14,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               id
               title
               apiType
+              handle
             }
           }
         }
@@ -23,10 +24,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const functionsData = await functionsResponse.json();
     //console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
-    // Find ORDER discount function specifically (not product discount)
-    const discountFunction = functionsData.data?.shopifyFunctions?.nodes?.find(
-      (fn: any) => fn.apiType === "order_discounts" && fn.title?.toLowerCase().includes("pickup")
-    );
+    // Pickup ORDER discount function'ı bul.
+    // Discount Function API (2026-07) ile apiType "discount" oldu; önce handle ile,
+    // bulunamazsa eski title/apiType eşleşmesiyle ara.
+    const nodes = functionsData.data?.shopifyFunctions?.nodes || [];
+    const discountFunction =
+      nodes.find((fn: any) => fn.handle === "pickup-order-discount") ||
+      nodes.find(
+        (fn: any) =>
+          (fn.apiType === "order_discounts" || fn.apiType === "discount") &&
+          fn.title?.toLowerCase().includes("pickup") &&
+          fn.title?.toLowerCase().includes("order")
+      );
 
     if (!discountFunction) {
       //console.error("❌ No order discount function found!");
@@ -61,6 +70,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           automaticAppDiscount: {
             title: "Pickup Afhaal Korting (Automatisch)",
             functionId: discountFunction.id,
+            // Discount Function API: sınıf belirtilmezse function çıktısı uygulanmaz
+            discountClasses: ["ORDER"],
             startsAt: "2024-01-01T00:00:00Z",
             combinesWith: {
               orderDiscounts: true,

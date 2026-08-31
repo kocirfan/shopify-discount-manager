@@ -1,4 +1,4 @@
-api_version = "2025-07"
+api_version = "2026-07"
 
 [[extensions]]
 name = "Customer Tag Product Discount"
@@ -8,7 +8,7 @@ type = "function"
 description = "Apply automatic discounts to individual product prices based on customer tags."
 
   [[extensions.targeting]]
-  target = "purchase.product-discount.run"
+  target = "cart.lines.discounts.generate.run"
   input_query = "src/run.graphql"
   export = "run"
 

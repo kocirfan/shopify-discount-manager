@@ -11,6 +11,11 @@ query CartTransformRunInput {
           amount
         }
       }
+      # Surcharge satırına checkout UI extension / tema JS tarafından yazılır:
+      # indirim SONRASI satır tutarları -> {"<variantId>": [adet, tutar], ...}
+      surchargeBase: attribute(key: "_surcharge_base") {
+        value
+      }
       merchandise {
         __typename
         ... on ProductVariant {

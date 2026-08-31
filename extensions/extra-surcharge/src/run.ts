@@ -1,7 +1,30 @@
 import type { CartTransformRunInput } from "../generated/api";
 
+// ============================================================
+// ORDERTOESLAG (EXTRA SURCHARGE) — CART TRANSFORM
+//
+// Surcharge satırının fiyatı = eligible ürünlerin İNDİRİM SONRASI toplamı × %5.
+//
+// Cart Transform, Shopify'ın indirim motoru çalışmadan ÖNCE koşar; bu yüzden
+// input'ta yalnızca indirimsiz fiyatlar (amountPerQuantity) vardır:
+//  - Discount Manager (müşteri tag / metafield) indirimi burada AYNI kurallarla
+//    yeniden hesaplanır (getCustomerDiscountRate) — mevcut mantık.
+//  - Shopify'ın kendi indirimleri (admin'den açılan otomatik indirimler, indirim
+//    kodları) buradan görülemez. Bunlar için checkout UI extension
+//    (checkout-extension-app/custom-input-field/src/surchargeBaseSync.js) ve tema JS
+//    (price-display/assets/surcharge-cart-manager.js) surcharge satırına
+//    `_surcharge_base` attribute'ünü yazar: indirim SONRASI satır tutarları.
+//
+// Attribute formatı: {"<variantNumericId>": [adet, indirimSonrasıSatırToplamı], ...}
+// Kullanım kuralı: attribute yalnızca adet eşleşiyorsa (güncel) VE mevcut hesaptan
+// DÜŞÜK bir tutar veriyorsa kullanılır. Yani mevcut hesap asla yukarı yönlü
+// değişmez; Shopify indirimleri sadece toeslag tabanını düşürür.
+// ============================================================
+
 const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
 const SURCHARGE_RATE = 0.05;
+// API 2026-07: Cart Transform operasyonu `update` -> `lineUpdate` olarak yeniden adlandırıldı.
+export const SURCHARGE_BASE_ATTRIBUTE_KEY = "_surcharge_base";
 // Bu ürünler Ordertoeslag (surcharge) hesaplamasına dahil edilmez
 const SURCHARGE_EXEMPT_PRODUCT_IDS = [
   "gid://shopify/Product/15252021281098",
@@ -54,6 +77,38 @@ function getCustomerDiscountRate(input: CartTransformRunInput): number {
   }
 }
 
+// "gid://shopify/ProductVariant/123" -> "123" (sayısal id zaten sayısalsa aynen döner)
+function variantNumericId(id: string): string {
+  const idx = id.lastIndexOf("/");
+  return idx >= 0 ? id.slice(idx + 1) : id;
+}
+
+type DiscountedBaseHint = Record<string, { quantity: number; total: number }>;
+
+// `_surcharge_base` attribute'ünü güvenli şekilde parse eder; bozuk girdiler yok sayılır.
+export function parseDiscountedBaseHint(raw: string | null | undefined): DiscountedBaseHint | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+  const hint: DiscountedBaseHint = {};
+  for (const key of Object.keys(parsed as Record<string, unknown>)) {
+    const entry = (parsed as Record<string, unknown>)[key];
+    if (!Array.isArray(entry) || entry.length < 2) continue;
+    const quantity = Number(entry[0]);
+    const total = Number(entry[1]);
+    if (!Number.isInteger(quantity) || quantity <= 0) continue;
+    if (!Number.isFinite(total) || total < 0) continue;
+    hint[variantNumericId(String(key))] = { quantity, total };
+  }
+  return Object.keys(hint).length > 0 ? hint : null;
+}
+
 export function run(input: CartTransformRunInput): unknown {
   const lines = input.cart.lines;
 
@@ -74,8 +129,12 @@ export function run(input: CartTransformRunInput): unknown {
     if (raw) excludedProductIds = JSON.parse(raw);
   } catch { /* boş liste */ }
 
-  // Her line için indirim sonrası tutarı hesapla
-  let cartTotal = 0;
+  // Checkout / tema tarafından yazılan indirim sonrası tutarlar (Shopify indirimleri dahil)
+  const discountedHint = parseDiscountedBaseHint(surchargeLine.surchargeBase?.value);
+
+  // Her line için indirim sonrası tutarı hesapla (mevcut mantık — değişmedi).
+  // Hint ile karşılaştırabilmek için variant bazında toplanır.
+  const perVariant: Record<string, { quantity: number; computed: number }> = {};
   for (const line of lines) {
     const merch = line.merchandise;
     if (merch.__typename !== "ProductVariant") continue;
@@ -92,7 +151,27 @@ export function run(input: CartTransformRunInput): unknown {
       (variant.product?.id != null && excludedProductIds.includes(variant.product.id));
 
     const effectivePrice = isExcluded ? linePrice : linePrice * (1 - discountRate);
-    cartTotal += effectivePrice * line.quantity;
+
+    const key = variantNumericId(variant.id);
+    const agg = perVariant[key] || { quantity: 0, computed: 0 };
+    agg.quantity += line.quantity;
+    agg.computed += effectivePrice * line.quantity;
+    perVariant[key] = agg;
+  }
+
+  let cartTotal = 0;
+  for (const key of Object.keys(perVariant)) {
+    const agg = perVariant[key];
+    let effective = agg.computed;
+
+    // Shopify indirimi varsa (otomatik indirim / kod) hint mevcut hesaptan düşük gelir.
+    // Adet eşleşmiyorsa hint bayattır (sepet değişmiş) -> yok say, mevcut hesap kalır.
+    const hint = discountedHint ? discountedHint[key] : undefined;
+    if (hint && hint.quantity === agg.quantity && hint.total < effective) {
+      effective = hint.total;
+    }
+
+    cartTotal += effective;
   }
 
   cartTotal = parseFloat(cartTotal.toFixed(2));
@@ -103,7 +182,7 @@ export function run(input: CartTransformRunInput): unknown {
   return {
     operations: [
       {
-        update: {
+        lineUpdate: {
           cartLineId: surchargeLine.id,
           price: {
             adjustment: {

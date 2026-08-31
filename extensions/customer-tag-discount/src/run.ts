@@ -2,41 +2,18 @@
 // CUSTOMER TAG DISCOUNT - ORDER LEVEL (DEPRECATED)
 // Bu extension artık kullanılmıyor.
 // Yeni "customer-tag-product-discount" extension'ı kullanın.
+//
+// API: Discount Function API (cart.lines.discounts.generate.run, 2026-07).
+// Legacy "purchase.order-discount.run" 2026-04 itibarıyla kaldırıldığı için
+// deploy edilebilir kalması adına yeni API'ye taşındı; davranış değişmedi:
+// her zaman boş operations döndürür.
 // ============================================================
 
-type FunctionResult = {
-  discounts: {
-    value: {
-      fixedAmount?: { amount: string };
-      percentage?: { value: string };
-    };
-    message?: string;
-    targets?: { orderSubtotal?: { excludedVariantIds: string[] } }[];
-  }[];
-  discountApplicationStrategy: "FIRST" | "MAXIMUM";
-};
+import type { CartLinesDiscountsGenerateRunInput } from "../generated/api";
 
-interface RunInput {
-  cart: {
-    cost: { subtotalAmount: { amount: string } };
-    buyerIdentity?: {
-      customer?: {
-        id: string;
-        email?: string;
-        hasTags?: { hasTag: boolean; tag: string }[];
-      };
-    };
-  };
-  shop?: { customerTagDiscountRules?: { value?: string } };
-}
+type FunctionResult = { operations: never[] };
 
-export function run(input: RunInput): FunctionResult {
-  //console.error("=== CUSTOMER TAG DISCOUNT (ORDER LEVEL - DEPRECATED) ===");
-  //console.error("Bu extension devre dışı. 'customer-tag-product-discount' kullanın.");
-
+export function run(_input: CartLinesDiscountsGenerateRunInput): FunctionResult {
   // Bu extension artık kullanılmıyor - her zaman boş döndür
-  return {
-    discounts: [],
-    discountApplicationStrategy: "FIRST",
-  };
+  return { operations: [] };
 }

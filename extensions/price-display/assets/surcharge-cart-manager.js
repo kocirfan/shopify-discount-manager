@@ -1,13 +1,20 @@
 /**
  * Surcharge Cart Manager
  * - Sepet toplamının %X'i kadar surcharge ürününü yönetir
- * - İndirimli fiyatlar (final_line_price) baz alınır
- * - Checkout öncesi doğrulama döngüsü ile yanlış fiyatla checkout engellenir
+ * - Fiyatı Cart Transform (extra-surcharge) belirler; JS surcharge satırının
+ *   sepette (adet 1) olmasını sağlar
+ * - Cart Transform Shopify indirimlerini (otomatik indirim / kod) göremediği için
+ *   indirim SONRASI satır tutarları (final_line_price) surcharge satırına
+ *   `_surcharge_base` line property'si olarak yazılır:
+ *     {"<variantId>": [adet, indirimSonrasıSatırToplamı], ...}
+ *   Aynı property checkout'ta checkout UI extension tarafından güncel tutulur.
+ * - Checkout öncesi doğrulama döngüsü ile yanlış surcharge ile checkout engellenir
  */
 (function () {
   "use strict";
 
   var POLL_INTERVAL = 8000; // 8 saniye
+  var SURCHARGE_BASE_KEY = "_surcharge_base";
 
   // ============================================================
   // CONFIG
@@ -62,11 +69,27 @@
     }, Promise.resolve());
   }
 
-  function addSurcharge(variantId) {
+  function addSurcharge(variantId, baseHint) {
+    var item = { id: Number(variantId), quantity: 1 };
+    if (baseHint) {
+      item.properties = {};
+      item.properties[SURCHARGE_BASE_KEY] = baseHint;
+    }
     return fetchJSON("/cart/add.js", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
+      body: JSON.stringify({ items: [item] }),
+    });
+  }
+
+  // Mevcut surcharge satırının `_surcharge_base` property'sini günceller
+  function updateSurchargeBase(line, baseHint) {
+    var properties = {};
+    properties[SURCHARGE_BASE_KEY] = baseHint;
+    return fetchJSON("/cart/change.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: line.key, quantity: 1, properties: properties }),
     });
   }
 
@@ -75,9 +98,47 @@
   }
 
   // ============================================================
+  // İNDİRİM SONRASI TABAN (Cart Transform için ipucu)
+  // final_line_price: satır seviyesi tüm indirimler (otomatik indirim, kod,
+  // function indirimleri) düşülmüş tutar, cent cinsinden.
+  // ============================================================
+  function buildBaseHint(lines, variantId) {
+    var perVariant = {};
+
+    lines.forEach(function (l) {
+      if (String(l.variant_id) === variantId) return;
+      var quantity = Number(l.quantity);
+      var finalLinePrice = Number(l.final_line_price);
+      if (!isFinite(finalLinePrice) || !(quantity > 0)) return;
+
+      var key = String(l.variant_id);
+      var agg = perVariant[key] || { quantity: 0, total: 0 };
+      agg.quantity += quantity;
+      agg.total += finalLinePrice;
+      perVariant[key] = agg;
+    });
+
+    var keys = Object.keys(perVariant).sort();
+    if (keys.length === 0) return null;
+
+    var out = {};
+    keys.forEach(function (key) {
+      out[key] = [perVariant[key].quantity, Math.round(perVariant[key].total) / 100];
+    });
+    return JSON.stringify(out);
+  }
+
+  function currentBaseHint(line) {
+    var props = line.properties || {};
+    var value = props[SURCHARGE_BASE_KEY];
+    return value == null ? null : String(value);
+  }
+
+  // ============================================================
   // CORE LOGIC
-  // Cart Transform fiyatı hallediyor — JS sadece variant'ın
-  // sepette olup olmadığını yönetir.
+  // Cart Transform fiyatı hallediyor — JS variant'ın sepette olup olmadığını
+  // ve `_surcharge_base` ipucunun güncel olmasını yönetir. Idempotent:
+  // yapılacak bir şey yoksa hiç istek atmaz.
   // ============================================================
   function applySurcharge(cart, config) {
     var lines = cart.items || [];
@@ -95,14 +156,19 @@
       return removeSurchargeLines(surchargeLines);
     }
 
-    // Tek surcharge, miktar 1 → değişiklik yok
+    var baseHint = buildBaseHint(lines, VARIANT_ID);
+
+    // Tek surcharge, miktar 1 → sadece ipucu güncelliğine bak
     if (surchargeLines.length === 1 && surchargeLines[0].quantity === 1) {
+      if (baseHint && currentBaseHint(surchargeLines[0]) !== baseHint) {
+        return updateSurchargeBase(surchargeLines[0], baseHint);
+      }
       return Promise.resolve();
     }
 
     // Fazla/eksik satır varsa düzelt
     return removeSurchargeLines(surchargeLines).then(function () {
-      return addSurcharge(VARIANT_ID);
+      return addSurcharge(VARIANT_ID, baseHint);
     });
   }
 
@@ -132,12 +198,15 @@
         });
       }
 
-      // Tek satır, miktar 1 → onaylandı (fiyatı Cart Transform halleder)
+      // Tek satır, miktar 1, ipucu güncel → onaylandı (fiyatı Cart Transform halleder)
       if (surcharge.length === 1 && surcharge[0].quantity === 1) {
-        return Promise.resolve();
+        var baseHint = buildBaseHint(lines, VARIANT_ID);
+        if (!baseHint || currentBaseHint(surcharge[0]) === baseHint) {
+          return Promise.resolve();
+        }
       }
 
-      // Eksik/fazla: düzelt
+      // Eksik/fazla/bayat ipucu: düzelt
       return applySurcharge(cart, config)
         .then(function () {
           return new Promise(function (resolve) { setTimeout(resolve, 700); });
@@ -234,27 +303,15 @@
 
   // ============================================================
   // POLLING — indirim dahil her değişikliği yakalar
+  // applySurcharge idempotent olduğu için her turda çağrılır;
+  // sepet zaten doğruysa /cart.js dışında istek atılmaz.
   // ============================================================
-  var _lastRealHash = null;
-
-  function realHash(lines, variantId) {
-    return lines
-      .filter(function (l) { return String(l.variant_id) !== variantId; })
-      // final_line_price: indirim uygulanmış fiyat — bu değişince hash değişir
-      .map(function (l) { return l.variant_id + ":" + l.quantity + ":" + l.final_line_price; })
-      .sort()
-      .join("|");
-  }
-
   function syncPoll() {
     var config = getConfig();
     if (!config || !config.enabled) return;
 
     enqueue(function () {
       return getCart().then(function (cart) {
-        var hash = realHash(cart.items || [], config.variantId);
-        if (hash === _lastRealHash) return;
-        _lastRealHash = hash;
         return applySurcharge(cart, config);
       }).catch(function (e) {
         if (e && e.message && e.message.indexOf("429") !== -1) return;

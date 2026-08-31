@@ -1,68 +1,83 @@
-import type { RunInput } from "../generated/api";
+// ============================================================
+// PICKUP ORDER DISCOUNT
+// Pickup (afhalen) seçildiğinde sepet ara toplamına %2 sipariş indirimi.
+//
+// API: Discount Function API (cart.lines.discounts.generate.run, 2026-07).
+// Legacy "purchase.order-discount.run" 2026-04 itibarıyla kaldırıldı; çıktı
+// `orderDiscountsAdd` + `orderSubtotal` hedefine taşındı. Pickup tespiti aynıdır.
+// NOT: Legacy sürüm `productVariant` hedefleri döndürüyordu; Order Discount API'sinde
+// bu hedef tipi bulunmadığı için o çıktı geçersizdi. Bu sürüm geçerli çıktı üretir.
+// ============================================================
+
+import type { CartLinesDiscountsGenerateRunInput } from "../generated/api";
+
+const PICKUP_DISCOUNT_PERCENTAGE = 2;
 
 type FunctionResult = {
-  discounts: {
-    value: {
-      fixedAmount?: { amount: string };
-      percentage?: { value: string };
+  operations: {
+    orderDiscountsAdd: {
+      candidates: {
+        message?: string;
+        targets: { orderSubtotal: { excludedCartLineIds: string[] } }[];
+        value: { percentage: { value: number } };
+      }[];
+      selectionStrategy: "FIRST" | "MAXIMUM";
     };
-    message?: string;
-    targets?: {
-      orderSubtotal?: { excludedVariantIds: string[] };
-    }[];
   }[];
-  discountApplicationStrategy: "FIRST" | "MAXIMUM";
 };
 
-export function run(input: RunInput): FunctionResult {
-  const cart = input.cart;
-  const emptyReturn: FunctionResult = {
-    discounts: [],
-    discountApplicationStrategy: "FIRST",
-  };
-
+function isPickupSelected(cart: CartLinesDiscountsGenerateRunInput["cart"]): boolean {
   // Önce cart attribute'dan delivery type'ı kontrol et (Checkout UI tarafından set edilir)
-  const selectedDeliveryType = (cart as any).attribute?.value;
+  const selectedDeliveryType = cart.attribute?.value;
   if (selectedDeliveryType) {
-    if (selectedDeliveryType !== "pickup") return emptyReturn;
-  } else {
-    // Cart attribute yoksa deliveryGroups'tan tespit et
-    const deliveryGroups = (cart as any).deliveryGroups || [];
-    if (deliveryGroups.length === 0) return emptyReturn;
-
-    const firstGroup = deliveryGroups[0];
-    const selected = firstGroup?.selectedDeliveryOption;
-    if (!selected) return emptyReturn;
-
-    const title = (selected.title || "").toLowerCase();
-    const handle = (selected.handle || "").toLowerCase();
-    const isPickup =
-      title.includes("pickup") ||
-      title.includes("afhalen") ||
-      title.includes("abholung") ||
-      title.includes("terheijdenseweg") ||
-      handle.includes("pickup") ||
-      handle.includes("afhalen") ||
-      handle.includes("terheijdenseweg");
-
-    if (!isPickup) return emptyReturn;
+    return selectedDeliveryType === "pickup";
   }
 
-  const targets = ((cart as any).lines || [])
-    .map((line: any) => ({ productVariant: { id: line.merchandise.id } }));
+  // Cart attribute yoksa deliveryGroups'tan tespit et
+  const deliveryGroups = cart.deliveryGroups || [];
+  if (deliveryGroups.length === 0) return false;
 
-  if (targets.length === 0) return emptyReturn;
+  const selected = deliveryGroups[0]?.selectedDeliveryOption;
+  if (!selected) return false;
+
+  const title = (selected.title || "").toLowerCase();
+  const handle = String(selected.handle || "").toLowerCase();
+  return (
+    title.includes("pickup") ||
+    title.includes("afhalen") ||
+    title.includes("abholung") ||
+    title.includes("terheijdenseweg") ||
+    handle.includes("pickup") ||
+    handle.includes("afhalen") ||
+    handle.includes("terheijdenseweg")
+  );
+}
+
+export function run(input: CartLinesDiscountsGenerateRunInput): FunctionResult {
+  const emptyReturn: FunctionResult = { operations: [] };
+
+  const discountClasses = (input.discount?.discountClasses || []) as string[];
+  if (!discountClasses.includes("ORDER")) return emptyReturn;
+
+  const cart = input.cart;
+  if (!cart.lines || cart.lines.length === 0) return emptyReturn;
+  if (!isPickupSelected(cart)) return emptyReturn;
 
   return {
-    discounts: [
+    operations: [
       {
-        value: {
-          percentage: { value: "2.0" },
+        orderDiscountsAdd: {
+          candidates: [
+            {
+              message: `%${PICKUP_DISCOUNT_PERCENTAGE} Pickup Korting`,
+              // Legacy sürümdeki gibi tüm satırlar dahil (hariç tutulan satır yok)
+              targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],
+              value: { percentage: { value: PICKUP_DISCOUNT_PERCENTAGE } },
+            },
+          ],
+          selectionStrategy: "FIRST",
         },
-        message: "%2 Pickup Korting",
-        targets,
       },
     ],
-    discountApplicationStrategy: "FIRST",
   };
 }
