@@ -23,7 +23,10 @@ import type { CartTransformRunInput } from "../generated/api";
 
 const SURCHARGE_VARIANT_ID = "gid://shopify/ProductVariant/61571547791690";
 const SURCHARGE_RATE = 0.05;
-// API 2026-07: Cart Transform operasyonu `update` -> `lineUpdate` olarak yeniden adlandırıldı.
+// DİKKAT (2026-07): Hedef `purchase.cart-transform.run` -> sonuç tipi FunctionRunResult ->
+// operasyon adları `expand` / `merge` / `update`. `lineExpand` / `linesMerge` / `lineUpdate`
+// adları YALNIZCA yeni `cart.transform.run` hedefine aittir; burada kullanılırsa Shopify
+// çıktıyı InvalidOutputError ile reddeder (canlıda 31.08.2026 yaşandı).
 export const SURCHARGE_BASE_ATTRIBUTE_KEY = "_surcharge_base";
 // Bu ürünler Ordertoeslag (surcharge) hesaplamasına dahil edilmez
 const SURCHARGE_EXEMPT_PRODUCT_IDS = [
@@ -182,7 +185,7 @@ export function run(input: CartTransformRunInput): unknown {
   return {
     operations: [
       {
-        lineUpdate: {
+        update: {
           cartLineId: surchargeLine.id,
           price: {
             adjustment: {

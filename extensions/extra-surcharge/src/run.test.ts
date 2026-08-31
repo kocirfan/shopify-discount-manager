@@ -63,7 +63,7 @@ function input(lines: ReturnType<typeof line>[], extra: { exactDiscountCode?: st
 
 function surchargeAmount(result: any): string | null {
   if (!result.operations.length) return null;
-  return result.operations[0].lineUpdate.price.adjustment.fixedPricePerUnit.amount;
+  return result.operations[0].update.price.adjustment.fixedPricePerUnit.amount;
 }
 
 const DESK = "gid://shopify/ProductVariant/111";
@@ -82,7 +82,7 @@ describe("run — mevcut mantık (değişmedi)", () => {
 
   it("surcharge satırını update operasyonu ile fiyatlar", () => {
     const result: any = run(input([surchargeLine(), line({ variantId: DESK, price: "320.00" })]));
-    expect(result.operations[0].lineUpdate.cartLineId).toBe("gid://shopify/CartLine/surcharge");
+    expect(result.operations[0].update.cartLineId).toBe("gid://shopify/CartLine/surcharge");
   });
 
   it("Discount Manager müşteri indirimini (korting-25) hesaba yansıtır", () => {

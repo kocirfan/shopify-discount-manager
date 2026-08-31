@@ -1,7 +1,10 @@
 # Extra Surcharge (Ordertoeslag %5) — Cart Transform
 
-API sürümü: **2026-07** (`purchase.cart-transform.run`). Bu sürümde operasyon adı
-`update` → `lineUpdate` oldu; eski sürümler (≤ 2025-07) deploy edilemez.
+API sürümü: **2026-07**, hedef `purchase.cart-transform.run` (eski sürümler ≤ 2025-07 deploy edilemez).
+
+> **Operasyon adları:** Bu hedef `FunctionRunResult` döndürür → `expand` / `merge` / `update`.
+> `lineExpand` / `linesMerge` / `lineUpdate` adları yalnızca yeni `cart.transform.run` hedefine aittir;
+> bu hedefte kullanılırsa Shopify `InvalidOutputError` verir ve toeslag katalog fiyatında kalır.
 
 Surcharge ürünü (`ProductVariant/61571547791690`) sepetteyken fiyatını
 **eligible ürünlerin indirim sonrası toplamı × %5** olarak belirler.
