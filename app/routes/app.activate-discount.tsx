@@ -14,7 +14,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               id
               title
               apiType
-              handle
             }
           }
         }
@@ -25,11 +24,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     //console.log("Available functions:", JSON.stringify(functionsData, null, 2));
 
     // Pickup ORDER discount function'ı bul.
-    // Discount Function API (2026-07) ile apiType "discount" oldu; önce handle ile,
-    // bulunamazsa eski title/apiType eşleşmesiyle ara.
+    // Discount Function API (2026-07) ile apiType "discount" oldu (eski: "order_discounts").
+    // Not: ShopifyFunction.handle alanı 2025-10 Admin API'de yok; title + apiType ile eşleştir.
     const nodes = functionsData.data?.shopifyFunctions?.nodes || [];
     const discountFunction =
-      nodes.find((fn: any) => fn.handle === "pickup-order-discount") ||
       nodes.find(
         (fn: any) =>
           (fn.apiType === "order_discounts" || fn.apiType === "discount") &&

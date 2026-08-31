@@ -236,7 +236,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 id
                 title
                 apiType
-                handle
               }
             }
           }
@@ -248,11 +247,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       // Customer tag PRODUCT discount function'ını bul
       // ÖNEMLİ: "customer-tag-product-discount" bir PRODUCT discount'tur, order discount değil!
-      // Discount Function API (2026-07) ile apiType "discount" oldu; önce handle ile,
-      // bulunamazsa eski title/apiType eşleşmesiyle ara.
+      // Discount Function API (2026-07) ile apiType "discount" oldu (eski: "product_discounts").
+      // Not: ShopifyFunction.handle alanı 2025-10 Admin API'de yok; title + apiType ile eşleştir.
       const functionNodes = functionsData.data?.shopifyFunctions?.nodes || [];
       let discountFunction =
-        functionNodes.find((fn: any) => fn.handle === "customer-tag-product-discount") ||
         functionNodes.find(
           (fn: any) => (fn.apiType === "product_discounts" || fn.apiType === "discount") &&
             (fn.title?.toLowerCase().includes("customer tag product") ||
