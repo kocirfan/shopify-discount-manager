@@ -8,6 +8,8 @@ query CartLinesDiscountsGenerateRunInput {
       selectedDeliveryOption {
         handle
         title
+        # SHIPPING | PICK_UP | PICKUP_POINT | LOCAL | RETAIL | NONE
+        deliveryMethodType
       }
     }
     # Checkout UI (delivery-tracker) tarafından set edilir: "pickup" | "shipping"

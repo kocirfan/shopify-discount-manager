@@ -3483,7 +3483,7 @@ export type DeliveryInput = { __typename?: 'Input', cart: { __typename?: 'Cart',
 export type CartLinesDiscountsGenerateRunInputVariables = Exact<{ [key: string]: never; }>;
 
 
-export type CartLinesDiscountsGenerateRunInput = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string, selectedDeliveryOption?: { __typename?: 'CartDeliveryOption', handle: any, title?: string | null } | null }>, attribute?: { __typename?: 'Attribute', value?: string | null } | null }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
+export type CartLinesDiscountsGenerateRunInput = { __typename?: 'Input', cart: { __typename?: 'Cart', lines: Array<{ __typename?: 'CartLine', id: string }>, deliveryGroups: Array<{ __typename?: 'CartDeliveryGroup', id: string, selectedDeliveryOption?: { __typename?: 'CartDeliveryOption', handle: any, title?: string | null, deliveryMethodType: DeliveryMethod } | null }>, attribute?: { __typename?: 'Attribute', value?: string | null } | null }, discount: { __typename?: 'Discount', discountClasses: Array<DiscountClass> } };
 
 export type RunInputVariables = Exact<{ [key: string]: never; }>;
 

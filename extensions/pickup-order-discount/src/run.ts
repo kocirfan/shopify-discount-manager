@@ -4,9 +4,18 @@
 //
 // API: Discount Function API (cart.lines.discounts.generate.run, 2026-07).
 // Legacy "purchase.order-discount.run" 2026-04 itibarıyla kaldırıldı; çıktı
-// `orderDiscountsAdd` + `orderSubtotal` hedefine taşındı. Pickup tespiti aynıdır.
+// `orderDiscountsAdd` + `orderSubtotal` hedefine taşındı.
 // NOT: Legacy sürüm `productVariant` hedefleri döndürüyordu; Order Discount API'sinde
 // bu hedef tipi bulunmadığı için o çıktı geçersizdi. Bu sürüm geçerli çıktı üretir.
+//
+// PICKUP TESPİTİ (öncelik sırası):
+// 1. Checkout'ta SEÇİLİ teslimat seçeneği (deliveryGroups[].selectedDeliveryOption):
+//    deliveryMethodType == PICK_UP -> pickup; SHIPPING vb. -> pickup DEĞİL.
+//    Bu, kaynağı doğrudan Shopify olan tek güvenilir bilgidir.
+// 2. Henüz teslimat seçilmemişse cart attribute `selected_delivery_type`
+//    (delivery-tracker checkout UI yazar). Attribute tek başına kullanılmaz çünkü
+//    Verzenden'e geçildiğinde UI extension sökülüp attribute "pickup"ta takılı
+//    kalabiliyor (31.08.2026: kargo seçiliyken %2 pickup uygulandı).
 // ============================================================
 
 import type { CartLinesDiscountsGenerateRunInput } from "../generated/api";
@@ -26,22 +35,20 @@ type FunctionResult = {
   }[];
 };
 
-function isPickupSelected(cart: CartLinesDiscountsGenerateRunInput["cart"]): boolean {
-  // Önce cart attribute'dan delivery type'ı kontrol et (Checkout UI tarafından set edilir)
-  const selectedDeliveryType = cart.attribute?.value;
-  if (selectedDeliveryType) {
-    return selectedDeliveryType === "pickup";
-  }
+type SelectedOption = {
+  handle?: string | null;
+  title?: string | null;
+  deliveryMethodType?: string | null;
+};
 
-  // Cart attribute yoksa deliveryGroups'tan tespit et
-  const deliveryGroups = cart.deliveryGroups || [];
-  if (deliveryGroups.length === 0) return false;
+function looksLikePickup(option: SelectedOption): boolean {
+  const type = String(option.deliveryMethodType || "").toUpperCase();
+  if (type === "PICK_UP") return true;
+  if (type && type !== "NONE") return false; // SHIPPING, LOCAL, RETAIL, PICKUP_POINT -> pickup değil
 
-  const selected = deliveryGroups[0]?.selectedDeliveryOption;
-  if (!selected) return false;
-
-  const title = (selected.title || "").toLowerCase();
-  const handle = String(selected.handle || "").toLowerCase();
+  // Tip bilgisi yoksa başlık/handle sezgisi (eski davranış)
+  const title = (option.title || "").toLowerCase();
+  const handle = String(option.handle || "").toLowerCase();
   return (
     title.includes("pickup") ||
     title.includes("afhalen") ||
@@ -51,6 +58,20 @@ function isPickupSelected(cart: CartLinesDiscountsGenerateRunInput["cart"]): boo
     handle.includes("afhalen") ||
     handle.includes("terheijdenseweg")
   );
+}
+
+export function isPickupSelected(cart: CartLinesDiscountsGenerateRunInput["cart"]): boolean {
+  const selectedOptions = (cart.deliveryGroups || [])
+    .map((group) => group?.selectedDeliveryOption as SelectedOption | null | undefined)
+    .filter((option): option is SelectedOption => !!option);
+
+  // 1) Teslimat seçilmişse yalnızca o belirleyicidir (tüm gruplar pickup olmalı)
+  if (selectedOptions.length > 0) {
+    return selectedOptions.every(looksLikePickup);
+  }
+
+  // 2) Henüz seçim yoksa checkout UI'ın yazdığı attribute'a bak
+  return cart.attribute?.value === "pickup";
 }
 
 export function run(input: CartLinesDiscountsGenerateRunInput): FunctionResult {
