@@ -24,6 +24,16 @@
     '.money'
   ];
 
+  // Sadece en içteki fiyat elementleri döner: .price-wrapper içinde .big-price varsa
+  // dış kapsayıcı atlanır. Aksi halde compare-at varken kapsayıcının metni
+  // "-2% korting €370,00 €364,00" olur ve indirim etiketi fiyat diye okunur
+  // (STAPELBED90200TUV'de giriş yapmış müşteriye €1,28 gösteriliyordu).
+  function getPriceElements() {
+    const selector = PRICE_SELECTORS.join(', ');
+    return Array.from(document.querySelectorAll(selector))
+      .filter(el => !el.querySelector(selector));
+  }
+
   // characterData da izleniyor: bazı temalar varyant değişiminde elementi
   // değiştirmeden sadece içindeki text node'u günceller.
   const OBSERVER_OPTIONS = {
@@ -80,11 +90,32 @@
     }
   }
 
-  function extractPrice(text) {
+  // Fiyat okunurken yok sayılacak alt elementler: üstü çizili compare-at fiyatı
+  // ("-2% korting €370,00" satırı) ve KDV dahil fiyat. Bunlar okunursa yanlış
+  // taban fiyattan indirim hesaplanır.
+  const IGNORED_PRICE_PARTS = [
+    's', 'del', 'strike',
+    '[style*="line-through"]',
+    '[class*="compare"]',
+    '.incl-btw-price'
+  ].join(', ');
+
+  function extractPrice(element) {
+    const clone = element.cloneNode(true);
+    clone.querySelectorAll(IGNORED_PRICE_PARTS).forEach(n => n.remove());
+    return extractPriceFromText(clone.textContent.trim());
+  }
+
+  function extractPriceFromText(text) {
     if (!text) return null;
     // Metinde birden fazla fiyat olabilir (örn. "€190,00 (€229,90 incl. btw)" veya
     // bizim yazdığımız "yeni fiyat + üstü çizili eski fiyat"). İlkini alıyoruz.
-    const match = text.replace(/\s/g, '').match(/\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d+)?/);
+    // Yüzde ifadeleri ("-2% korting" indirim etiketi) fiyat sanılmasın diye önce atılır;
+    // ardından "€" ile başlayan ilk tutar tercih edilir.
+    const compact = text.replace(/\s/g, '').replace(/[-−]?\d+(?:[.,]\d+)?%/g, '');
+    const amount = /\d{1,3}(?:\.\d{3})*,\d{2}|\d+(?:[.,]\d+)?/;
+    const euroMatch = compact.match(new RegExp('€(' + amount.source + ')'));
+    const match = euroMatch ? [euroMatch[1]] : compact.match(amount);
     if (!match) return null;
     const cleaned = match[0].replace(/\./g, '').replace(',', '.');
     const value = parseFloat(cleaned);
@@ -141,11 +172,10 @@
       }
     }
 
-    const text = element.textContent.trim();
-    const price = extractPrice(text);
+    const price = extractPrice(element);
 
     if (!price || price <= 0) {
-      log('Geçerli fiyat bulunamadı, atlanıyor. text:', JSON.stringify(text), '| parsed:', price);
+      log('Geçerli fiyat bulunamadı, atlanıyor. text:', JSON.stringify(element.textContent.trim()), '| parsed:', price);
       return;
     }
 
@@ -194,7 +224,7 @@
 
     // :not([data-cdp-processed]) filtresi kullanmıyoruz - updatePriceElement zaten
     // işlenmiş elementleri eleyip, tema tarafından değiştirilenleri yeniden işliyor.
-    const priceElements = document.querySelectorAll(PRICE_SELECTORS.join(', '));
+    const priceElements = getPriceElements();
     log('Bulunan fiyat elementleri:', priceElements.length, 'adet');
 
     priceElements.forEach(el => updatePriceElement(el, discount.discountPercentage));
@@ -227,7 +257,7 @@
         scheduled = false;
         observer.disconnect();
         try {
-          const elements = document.querySelectorAll(PRICE_SELECTORS.join(', '));
+          const elements = getPriceElements();
           elements.forEach(el => updatePriceElement(el, customerDiscount.discountPercentage));
         } finally {
           observer.observe(document.body, OBSERVER_OPTIONS);
