@@ -1,157 +1,119 @@
-import {
-  extension,
-  BlockStack,
-  Text,
-  DatePicker,
-  Banner,
-} from '@shopify/ui-extensions/checkout';
+// ============================================================
+// DELIVERY TRACKER — CHECKOUT UI (Preact + Polaris web components, 2026-07)
+//
+// Pickup seçildiğinde:
+//  - "2% extra korting voor afhalen" bilgisi + afhaaldatum seçici gösterilir
+//  - cart attribute `selected_delivery_type` = "pickup" | "shipping" yazılır
+//    (pickup-order-discount function'ı teslimat seçimi yoksa bunu kullanır)
+//  - seçilen tarih `pickup_delivery_date` attribute'üne yazılır
+//
+// 2025-10 öncesi `extension()` / `root.createComponent` API'si kaldırıldığı için
+// bu sürüme taşındı; davranış aynıdır.
+// ============================================================
 
-export default extension(
-  'purchase.checkout.pickup-location-list.render-after',
-  (root, { applyAttributeChange, deliveryGroups }) => {
-    const api = { applyAttributeChange, deliveryGroups };
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const minDate = tomorrow.toISOString().split('T')[0];
-    const maxDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+import '@shopify/ui-extensions/preact';
+import { render } from 'preact';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
-    const disabledDates = [];
-    const pastDate = new Date(today);
-    pastDate.setDate(pastDate.getDate() - 90);
-    while (pastDate <= today) {
-      disabledDates.push(pastDate.toISOString().split('T')[0]);
-      pastDate.setDate(pastDate.getDate() + 1);
-    }
-    const checkDate = new Date(tomorrow);
-    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
-    while (checkDate <= endDate) {
-      if (checkDate.getDay() === 0 || checkDate.getDay() === 6) {
-        disabledDates.push(checkDate.toISOString().split('T')[0]);
-      }
-      checkDate.setDate(checkDate.getDate() + 1);
-    }
+export default async () => {
+  render(<Extension />, document.body);
+};
 
-    const getNextWeekday = (date) => {
-      const d = new Date(date);
-      while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-      return d.toISOString().split('T')[0];
-    };
+// Yerel saatle YYYY-MM-DD
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
-    let selectedDate = getNextWeekday(tomorrow);
-    let isPickup = false;
-    let isMounted = false;
-    let lastDeliveryType = null;
-    let lastSavedDate = null;
-    let dateDebounceTimer = null;
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
 
-    const container = root.createComponent(BlockStack, { spacing: 'base' });
+function nextWeekday(date) {
+  const d = new Date(date);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  return d;
+}
 
-    const discountBanner = root.createComponent(Banner, {
-      status: 'success',
-      title: 'Pickup Korting!'
+function isPickupSelected(groups) {
+  const firstGroup = groups?.[0];
+  const selected = firstGroup?.selectedDeliveryOption;
+  if (!selected) return false;
+
+  const fullOption = (firstGroup.deliveryOptions || []).find(
+    (opt) => opt.handle === selected.handle,
+  );
+  const type = String(fullOption?.type || '').toLowerCase();
+  if (type) return type === 'pickup';
+
+  const title = String(fullOption?.title || selected.title || '').toLowerCase();
+  const handle = String(fullOption?.handle || selected.handle || '').toLowerCase();
+  return ['pickup', 'terheijdenseweg', 'afhalen'].some(
+    (k) => title.includes(k) || handle.includes(k),
+  );
+}
+
+function Extension() {
+  // Signal: değer değiştikçe bileşen yeniden render edilir
+  const isPickup = isPickupSelected(shopify.deliveryGroups.value);
+
+  const today = new Date();
+  const tomorrow = addDays(today, 1);
+  const maxDate = addDays(today, 30);
+
+  const [selectedDate, setSelectedDate] = useState(formatDate(nextWeekday(tomorrow)));
+  const lastDeliveryType = useRef(null);
+  const lastSavedDate = useRef(null);
+  const debounceTimer = useRef(null);
+
+  // Yalnızca değer değişince attribute yaz — sonsuz döngüyü önler
+  useEffect(() => {
+    const deliveryType = isPickup ? 'pickup' : 'shipping';
+    if (deliveryType === lastDeliveryType.current) return;
+    lastDeliveryType.current = deliveryType;
+    shopify.applyAttributeChange({
+      type: 'updateAttribute',
+      key: 'selected_delivery_type',
+      value: deliveryType,
     });
+  }, [isPickup]);
 
-    const discountText = root.createComponent(Text, {
-      size: 'medium',
-      emphasis: 'bold'
-    }, '2% extra korting voor afhalen!');
+  useEffect(() => () => clearTimeout(debounceTimer.current), []);
 
-    const dateHeading = root.createComponent(Text, {
-      size: 'base',
-      emphasis: 'bold'
-    }, 'Afhaaldatum');
-
-    const dateDescription = root.createComponent(Text, {
-      size: 'small',
-      appearance: 'subdued'
-    }, 'Selecteer uw gewenste afhaaldatum');
-
-    const datePicker = root.createComponent(DatePicker, {
-      selected: selectedDate,
-      disabled: disabledDates,
-      disableDatesAfter: maxDate,
-      disableDatesBefore: minDate,
-      onChange: (date) => {
-        selectedDate = date;
-        datePicker.updateProps({ selected: selectedDate });
-        if (date === lastSavedDate) return;
-        if (dateDebounceTimer) clearTimeout(dateDebounceTimer);
-        dateDebounceTimer = setTimeout(() => {
-          lastSavedDate = date;
-          api.applyAttributeChange({
-            type: 'updateAttribute',
-            key: 'pickup_delivery_date',
-            value: date,
-          });
-        }, 1500);
-      }
-    });
-
-    container.appendChild(discountBanner);
-    container.appendChild(discountText);
-    container.appendChild(dateHeading);
-    container.appendChild(dateDescription);
-    container.appendChild(datePicker);
-
-    function updateUI() {
-      const deliveryType = isPickup ? 'pickup' : 'shipping';
-
-      if (isPickup) {
-        if (!isMounted) {
-          root.appendChild(container);
-          isMounted = true;
-        }
-      } else {
-        if (isMounted) {
-          root.removeChild(container);
-          isMounted = false;
-        }
-      }
-
-      // Yalnızca değer değişince applyAttributeChange çağır — sonsuz döngüyü önler
-      if (deliveryType !== lastDeliveryType) {
-        lastDeliveryType = deliveryType;
-        api.applyAttributeChange({
-          type: 'updateAttribute',
-          key: 'selected_delivery_type',
-          value: deliveryType,
-        });
-      }
-    }
-
-    // Pickup seçilip seçilmediğini deliveryGroups ile izle
-    api.deliveryGroups.subscribe((groups) => {
-      if (!groups || groups.length === 0) {
-        isPickup = false;
-        updateUI();
-        return;
-      }
-
-      const firstGroup = groups[0];
-      const selected = firstGroup?.selectedDeliveryOption;
-
-      if (!selected) {
-        isPickup = false;
-        updateUI();
-        return;
-      }
-
-      const deliveryOptions = firstGroup?.deliveryOptions || [];
-      const fullOption = deliveryOptions.find(opt => opt.handle === selected.handle);
-      const title = fullOption?.title?.toLowerCase() || selected.title?.toLowerCase() || '';
-      const handle = fullOption?.handle?.toLowerCase() || selected.handle?.toLowerCase() || '';
-      const type = fullOption?.type?.toLowerCase() || '';
-
-      if (type) {
-        isPickup = type === 'pickup';
-      } else {
-        isPickup = title.includes('pickup') || handle.includes('pickup') ||
-                   title.includes('terheijdenseweg') || handle.includes('terheijdenseweg') ||
-                   title.includes('afhalen') || handle.includes('afhalen');
-      }
-
-      updateUI();
-    });
+  function handleDateChange(event) {
+    const date = event.currentTarget.value;
+    setSelectedDate(date);
+    if (!date || date === lastSavedDate.current) return;
+    clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      lastSavedDate.current = date;
+      shopify.applyAttributeChange({
+        type: 'updateAttribute',
+        key: 'pickup_delivery_date',
+        value: date,
+      });
+    }, 1500);
   }
-);
+
+  if (!isPickup) return null;
+
+  return (
+    <s-stack gap="base">
+      <s-banner tone="success" heading="Pickup Korting!" />
+      <s-text type="strong">2% extra korting voor afhalen!</s-text>
+      <s-heading>Afhaaldatum</s-heading>
+      <s-text color="subdued">Selecteer uw gewenste afhaaldatum</s-text>
+      <s-date-picker
+        type="single"
+        value={selectedDate}
+        onChange={handleDateChange}
+        disallow={`--${formatDate(today)},${formatDate(addDays(maxDate, 1))}--`}
+        disallowDays="saturday,sunday"
+      />
+    </s-stack>
+  );
+}

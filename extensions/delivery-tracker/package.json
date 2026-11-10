@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {},
   "dependencies": {
-    "@shopify/ui-extensions": "^2025.4.0"
-  },
-  "devDependencies": {
-    "@shopify/cli": "^3.69.0"
+    "@preact/signals": "^2.11.4",
+    "@shopify/ui-extensions": "2026.7.x",
+    "preact": "^10.29.8"
   }
 }
