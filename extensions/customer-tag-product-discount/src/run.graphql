@@ -1,8 +1,9 @@
+# NOT: Input query maliyet sınırı 30 (metafield/hasAnyTag/hasTags = 3, diğer alanlar = 1).
+# Bu sorgu tam 30 — yeni alan eklemeden önce kullanılmayan bir alanı çıkarın.
 query CartLinesDiscountsGenerateRunInput {
   cart {
     lines {
       id
-      quantity
       merchandise {
         __typename
         ... on ProductVariant {
@@ -10,22 +11,14 @@ query CartLinesDiscountsGenerateRunInput {
           sku
           product {
             id
-            title
             hasAnyTag(tags: ["nodiscount"])
           }
-        }
-      }
-      cost {
-        amountPerQuantity {
-          amount
-          currencyCode
         }
       }
     }
     buyerIdentity {
       customer {
         id
-        email
         # YENİ: exact_discount_code metafield'ı - en yüksek öncelik (örn. korting-20.1)
         exactDiscountCode: metafield(namespace: "custom", key: "exact_discount_code") {
           value
