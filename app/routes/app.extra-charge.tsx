@@ -31,6 +31,10 @@ interface LoaderData {
   isPaused: boolean;
 }
 
+// Eski / teknik kartlar (Cart Transform durumu, Toeslag Instellingen, Hoe werkt het?)
+// müşteriden gizlenir. Kod ve işlevler aynen durur; göstermek için true yapın.
+const SHOW_ADVANCED_SECTIONS = false;
+
 const DEFAULT_SETTINGS: SurchargeSettings = {
   enabled: false,
   percentage: 7,
@@ -462,6 +466,8 @@ export default function ExtraChargePage() {
           </Card>
         </Layout.Section>
 
+        {SHOW_ADVANCED_SECTIONS && (
+        <>
         {/* Durum kartı */}
         <Layout.Section>
           <Card>
@@ -584,6 +590,8 @@ export default function ExtraChargePage() {
             </BlockStack>
           </Card>
         </Layout.Section>
+        </>
+        )}
       </Layout>
     </Page>
   );
