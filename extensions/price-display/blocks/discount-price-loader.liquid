@@ -11,6 +11,16 @@
 </script>
 
 {% if customer %}
+  {% comment %}
+    Actiekorting aktifken Mega Deal SKU'ları (checkout_promo.excluded_skus) nodiscount
+    gibi davranır: bir varyantının SKU'su listede olan ürünlerde bayi fiyatı gösterilmez.
+    Actie kapalıyken liste yok sayılır.
+  {% endcomment %}
+  {% assign _promo_on = false %}
+  {% if shop.metafields.checkout_promo.active.value == true and shop.metafields.checkout_promo.excluded_skus.value != blank %}
+    {% assign _promo_on = true %}
+    {% assign _promo_skus = shop.metafields.checkout_promo.excluded_skus.value %}
+  {% endif %}
   <script id="customer-discount-data" type="application/json">
     {
       "isLoggedIn": true,
@@ -18,12 +28,26 @@
       "customerEmail": {{ customer.email | json }},
       "customerTags": {{ customer.tags | json }},
       {% assign _tag_str = product.tags | join: ',' | downcase %}
-      "pageProductHasNoDiscount": {% if _tag_str contains 'nodiscount' %}true{% else %}false{% endif %},
+      {% assign _page_megadeal = false %}
+      {% if product and _promo_on %}
+        {% for v in product.variants %}
+          {% assign _vsku = v.sku | strip | upcase %}
+          {% if _vsku != blank and _promo_skus contains _vsku %}{% assign _page_megadeal = true %}{% break %}{% endif %}
+        {% endfor %}
+      {% endif %}
+      "pageProductHasNoDiscount": {% if _tag_str contains 'nodiscount' or _page_megadeal %}true{% else %}false{% endif %},
       {% assign _nodiscount_handles = "" %}
       {% if collection %}
         {% for p in collection.products %}
           {% assign _p_tags = p.tags | join: ',' | downcase %}
-          {% if _p_tags contains 'nodiscount' %}
+          {% assign _p_megadeal = false %}
+          {% if _promo_on %}
+            {% for v in p.variants %}
+              {% assign _vsku = v.sku | strip | upcase %}
+              {% if _vsku != blank and _promo_skus contains _vsku %}{% assign _p_megadeal = true %}{% break %}{% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if _p_tags contains 'nodiscount' or _p_megadeal %}
             {% unless _nodiscount_handles == "" %}{% assign _nodiscount_handles = _nodiscount_handles | append: ',' %}{% endunless %}
             {% assign _nodiscount_handles = _nodiscount_handles | append: p.handle %}
           {% endif %}

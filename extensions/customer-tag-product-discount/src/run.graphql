@@ -7,6 +7,7 @@ query CartLinesDiscountsGenerateRunInput {
         __typename
         ... on ProductVariant {
           id
+          sku
           product {
             id
             title
@@ -59,6 +60,14 @@ query CartLinesDiscountsGenerateRunInput {
     discountClasses
   }
   shop {
+    # Admin "Actiekorting" düğmesi (boolean). true iken herkese ek %5 (nodiscount / muaf hariç).
+    checkoutPromoActive: metafield(namespace: "checkout_promo", key: "active") {
+      value
+    }
+    # Actie sırasında nodiscount gibi davranılacak SKU'lar (Mega Deals), JSON string listesi.
+    promoExcludedSkus: metafield(namespace: "checkout_promo", key: "excluded_skus") {
+      value
+    }
     customerTagDiscountRules: metafield(
       namespace: "customer_tag_discount"
       key: "rules"
