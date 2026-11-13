@@ -46,7 +46,10 @@ function surchargeLine(surchargeBase?: string | null) {
   });
 }
 
-function input(lines: ReturnType<typeof line>[], extra: { exactDiscountCode?: string; excludedProducts?: string[] } = {}) {
+function input(
+  lines: ReturnType<typeof line>[],
+  extra: { exactDiscountCode?: string; excludedProducts?: string[]; paused?: string | null } = {}
+) {
   return {
     cart: {
       lines,
@@ -55,6 +58,7 @@ function input(lines: ReturnType<typeof line>[], extra: { exactDiscountCode?: st
         : null,
     },
     shop: {
+      surchargePaused: extra.paused == null ? null : { value: extra.paused },
       customerTagDiscountRules: null,
       excludedProducts: extra.excludedProducts ? { value: JSON.stringify(extra.excludedProducts) } : null,
     },
@@ -242,5 +246,22 @@ describe("parseDiscountedBaseHint", () => {
     expect(parseDiscountedBaseHint("")).toBeNull();
     expect(parseDiscountedBaseHint("{}")).toBeNull();
     expect(parseDiscountedBaseHint("{bad")).toBeNull();
+  });
+});
+
+describe("run — toeslag pauzeren (extra_surcharge.paused)", () => {
+  const cart = () => [surchargeLine(), line({ variantId: DESK, price: "320.00" })];
+
+  it("metafield yoksa mevcut davranış aynen devam eder", () => {
+    expect(surchargeAmount(run(input(cart())))).toBe("16");
+  });
+
+  it("paused = false ise mevcut davranış aynen devam eder", () => {
+    expect(surchargeAmount(run(input(cart(), { paused: "false" })))).toBe("16");
+  });
+
+  it("paused = true ise toeslag fiyatlanmaz (operasyon yok)", () => {
+    const result: any = run(input(cart(), { paused: "true" }));
+    expect(result.operations).toEqual([]);
   });
 });

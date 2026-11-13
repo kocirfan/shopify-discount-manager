@@ -43,6 +43,10 @@ query CartTransformRunInput {
     }
   }
   shop {
+    # Admin "Toeslag pauzeren" düğmesi (boolean). Yoksa / false ise toeslag normal çalışır.
+    surchargePaused: metafield(namespace: "extra_surcharge", key: "paused") {
+      value
+    }
     customerTagDiscountRules: metafield(namespace: "customer_tag_discount", key: "rules") {
       value
     }

@@ -80,6 +80,11 @@ function getCustomerDiscountRate(input: CartTransformRunInput): number {
   }
 }
 
+// Shop metafield extra_surcharge.paused (boolean) -> "true" ise toeslag duraklatılmıştır.
+export function isSurchargePaused(input: CartTransformRunInput): boolean {
+  return input.shop?.surchargePaused?.value === "true";
+}
+
 // "gid://shopify/ProductVariant/123" -> "123" (sayısal id zaten sayısalsa aynen döner)
 function variantNumericId(id: string): string {
   const idx = id.lastIndexOf("/");
@@ -122,6 +127,10 @@ export function run(input: CartTransformRunInput): unknown {
   );
 
   if (!surchargeLine) return { operations: [] };
+
+  // Admin'den toeslag duraklatıldıysa fiyat güncellenmez. Satırı sepetten
+  // kaldırmak tema JS'inin işi (surcharge-cart-manager.js, paused modu).
+  if (isSurchargePaused(input)) return { operations: [] };
 
   const discountRate = getCustomerDiscountRate(input);
 

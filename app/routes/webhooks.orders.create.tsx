@@ -27,7 +27,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       const hasRealItems = realItems.length > 0;
 
+      // Toeslag admin'den duraklatıldıysa eksik olması beklenen durumdur — tag ekleme.
+      // Metafield sadece surcharge eksikken okunur; normal siparişlere ek istek yok.
+      let surchargePaused = false;
       if (hasRealItems) {
+        try {
+          const pausedRes = await admin.graphql(`#graphql
+            query {
+              shop {
+                surchargePaused: metafield(namespace: "extra_surcharge", key: "paused") {
+                  value
+                }
+              }
+            }
+          `);
+          const pausedData = await pausedRes.json();
+          surchargePaused = pausedData.data?.shop?.surchargePaused?.value === "true";
+        } catch (e) {
+          // Okunamazsa mevcut davranış (tag ekle) devam eder
+        }
+      }
+
+      if (hasRealItems && !surchargePaused) {
         await admin.graphql(`#graphql
           mutation tagsAdd($id: ID!, $tags: [String!]!) {
             tagsAdd(id: $id, tags: $tags) {

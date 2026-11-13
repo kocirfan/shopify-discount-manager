@@ -28,6 +28,9 @@
       variantId: String(variantId),
       enabled: el.getAttribute("data-enabled") !== "false",
       percentage: parseFloat(el.getAttribute("data-percentage")) || 5,
+      // Admin "Toeslag pauzeren" (shop metafield extra_surcharge.paused).
+      // true iken toeslag eklenmez, sepette kalmış satır silinir.
+      paused: el.getAttribute("data-paused") === "true",
     };
   }
 
@@ -148,6 +151,11 @@
       return String(l.variant_id) === VARIANT_ID;
     });
 
+    // Pauze modu: toeslag satırı hiç olmamalı
+    if (config.paused) {
+      return removeSurchargeLines(surchargeLines);
+    }
+
     var hasItems = hasRealItems(lines, VARIANT_ID);
 
     // Gerçek ürün yoksa surcharge'ı kaldır
@@ -190,8 +198,8 @@
       var surcharge = lines.filter(function (l) { return String(l.variant_id) === VARIANT_ID; });
       var hasItems = hasRealItems(lines, VARIANT_ID);
 
-      // Gerçek ürün yoksa surcharge olmamalı
-      if (!hasItems) {
+      // Gerçek ürün yoksa (veya pauze modunda) surcharge olmamalı
+      if (!hasItems || config.paused) {
         if (surcharge.length === 0) return Promise.resolve();
         return removeSurchargeLines(surcharge).then(function () {
           return verifyAndFix(config, attempt + 1);

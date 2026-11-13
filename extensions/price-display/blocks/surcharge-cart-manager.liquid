@@ -11,6 +11,7 @@
   data-variant-id="{{ block.settings.surcharge_variant_id | escape }}"
   data-enabled="{{ block.settings.enabled }}"
   data-percentage="{{ block.settings.percentage }}"
+  data-paused="{% if shop.metafields.extra_surcharge.paused.value == true %}true{% else %}false{% endif %}"
   style="display:none;"
 ></div>
 

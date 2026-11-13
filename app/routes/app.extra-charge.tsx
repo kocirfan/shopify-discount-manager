@@ -28,6 +28,7 @@ interface LoaderData {
   settings: SurchargeSettings;
   isCartTransformActive: boolean;
   cartTransformId: string | null;
+  isPaused: boolean;
 }
 
 const DEFAULT_SETTINGS: SurchargeSettings = {
@@ -45,6 +46,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let settings: SurchargeSettings = { ...DEFAULT_SETTINGS };
   let isCartTransformActive = false;
   let cartTransformId: string | null = null;
+  let isPaused = false;
 
   try {
     // Ayarları oku
@@ -58,11 +60,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             ) {
               value
             }
+            surchargePaused: metafield(
+              namespace: "extra_surcharge"
+              key: "paused"
+            ) {
+              value
+            }
           }
         }
       `
     );
     const settingsData = await settingsResponse.json();
+    isPaused = settingsData.data?.shop?.surchargePaused?.value === "true";
     const savedValue = settingsData.data?.shop?.surchargeSettings?.value;
     if (savedValue) {
       try {
@@ -113,7 +122,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Hata olursa inactive kabul et
   }
 
-  return { settings, isCartTransformActive, cartTransformId };
+  return { settings, isCartTransformActive, cartTransformId, isPaused };
 };
 
 // ============================================================
@@ -215,6 +224,66 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  // ---- TOESLAG PAUZEREN / HERVATTEN ----
+  // Shop metafield extra_surcharge.paused (boolean). Cart Transform, tema JS en
+  // orders/create webhook bunu okur. Cart Transform kaydına dokunulmaz.
+  if (intent === "pause" || intent === "resume") {
+    const paused = intent === "pause";
+    try {
+      const shopResponse = await admin.graphql(
+        `#graphql
+          query {
+            shop {
+              id
+            }
+          }
+        `
+      );
+      const shopData = await shopResponse.json();
+      const shopId = shopData.data.shop.id;
+
+      const response = await admin.graphql(
+        `#graphql
+          mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+            metafieldsSet(metafields: $metafields) {
+              metafields { id }
+              userErrors { field message }
+            }
+          }
+        `,
+        {
+          variables: {
+            metafields: [
+              {
+                namespace: "extra_surcharge",
+                key: "paused",
+                type: "boolean",
+                value: paused ? "true" : "false",
+                ownerId: shopId,
+              },
+            ],
+          },
+        }
+      );
+
+      const result = await response.json();
+      const errors = result.data?.metafieldsSet?.userErrors;
+      if (errors && errors.length > 0) {
+        return { success: false, message: "Fout: " + errors[0].message, intent };
+      }
+
+      return {
+        success: true,
+        message: paused
+          ? "Ordertoeslag is gepauzeerd. Er wordt geen toeslag meer berekend."
+          : "Ordertoeslag is weer actief.",
+        intent,
+      };
+    } catch (error: any) {
+      return { success: false, message: "Fout: " + (error?.message || String(error)), intent };
+    }
+  }
+
   // ---- AYARLARI KAYDET ----
   if (intent === "save") {
     const enabled = formData.get("enabled") === "true";
@@ -286,7 +355,7 @@ export default function ExtraChargePage() {
    // console.log("burada");
   }, []);
 
-  const { settings, isCartTransformActive, cartTransformId } =
+  const { settings, isCartTransformActive, cartTransformId, isPaused } =
     useLoaderData<LoaderData>();
   const actionData = useActionData<{
     success: boolean;
@@ -314,6 +383,12 @@ export default function ExtraChargePage() {
     submit(formData, { method: "post" });
   };
 
+  const handleTogglePause = () => {
+    const formData = new FormData();
+    formData.append("intent", currentlyPaused ? "resume" : "pause");
+    submit(formData, { method: "post" });
+  };
+
   const handleDeactivate = () => {
     const formData = new FormData();
     formData.append("intent", "deactivate");
@@ -328,6 +403,13 @@ export default function ExtraChargePage() {
       : actionData?.intent === "deactivate" && actionData?.success
       ? false
       : isCartTransformActive;
+
+  const currentlyPaused =
+    actionData?.intent === "pause" && actionData?.success
+      ? true
+      : actionData?.intent === "resume" && actionData?.success
+      ? false
+      : isPaused;
 
   const currentTransformId =
     actionData?.intent === "deactivate" && actionData?.success
@@ -349,6 +431,36 @@ export default function ExtraChargePage() {
             </Banner>
           </Layout.Section>
         )}
+
+        {/* Pauze kartı */}
+        <Layout.Section>
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <Text variant="headingMd" as="h2">
+                  Ordertoeslag (5%)
+                </Text>
+                <Badge tone={currentlyPaused ? "warning" : "success"}>
+                  {currentlyPaused ? "Gepauzeerd" : "Actief"}
+                </Badge>
+              </InlineStack>
+              <Text as="p" tone="subdued">
+                {currentlyPaused
+                  ? "De ordertoeslag is tijdelijk uitgeschakeld. Er wordt geen toeslagregel aan de winkelwagen toegevoegd en bestaande toeslagregels worden verwijderd."
+                  : "De ordertoeslag wordt normaal berekend. Pauzeer om de toeslag tijdelijk uit te schakelen (bijv. tijdens een actieperiode)."}
+              </Text>
+              <InlineStack gap="300">
+                <Button
+                  variant="primary"
+                  tone={currentlyPaused ? undefined : "critical"}
+                  onClick={handleTogglePause}
+                >
+                  {currentlyPaused ? "Toeslag hervatten" : "Toeslag pauzeren"}
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Card>
+        </Layout.Section>
 
         {/* Durum kartı */}
         <Layout.Section>
