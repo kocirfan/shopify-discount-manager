@@ -53,6 +53,24 @@
           {% endif %}
         {% endfor %}
       {% endif %}
+      {% comment %} Arama sayfasında `collection` yok; aynı kontrol search.results için. {% endcomment %}
+      {% if search.performed %}
+        {% for p in search.results %}
+          {% if p.object_type != 'product' %}{% continue %}{% endif %}
+          {% assign _p_tags = p.tags | join: ',' | downcase %}
+          {% assign _p_megadeal = false %}
+          {% if _promo_on %}
+            {% for v in p.variants %}
+              {% assign _vsku = v.sku | strip | upcase %}
+              {% if _vsku != blank and _promo_skus contains _vsku %}{% assign _p_megadeal = true %}{% break %}{% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if _p_tags contains 'nodiscount' or _p_megadeal %}
+            {% unless _nodiscount_handles == "" %}{% assign _nodiscount_handles = _nodiscount_handles | append: ',' %}{% endunless %}
+            {% assign _nodiscount_handles = _nodiscount_handles | append: p.handle %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
       "nodiscountHandles": {{ _nodiscount_handles | split: ',' | json }},
       "settings": {
         "showOriginalPrice": {{ block.settings.show_original_price | json }},
